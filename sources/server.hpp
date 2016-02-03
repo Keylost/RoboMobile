@@ -9,7 +9,7 @@
 #include <pthread.h>
 #include <vector>
 #include <opencv2/opencv.hpp>
-
+#include "Engine.hpp"
 #include "logger.hpp"
 #include "telemetry.hpp"
 #include "config.hpp"

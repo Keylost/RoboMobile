@@ -283,32 +283,24 @@ void capture_from_vid_fnc(System &syst)
 void* recognize_fnc(void *ptr)
 {
 	System *syst = (System *)ptr;
-	//Window wmain;
 	unsigned int frame_id=0;
 	Mat frame;
-	//Mat signarea(240,320,CV_8UC3);
-	//Mat linearea(120,640,CV_8UC3);
 	Engine engine; //main structure for robot control
 	Recognition recognize(&engine);
 	recognize.myline.robot_center = syst->robot_center; //init center point
 	robotimer r_timer;
-	//robotimer line_timer;
 	
-	while(1) //
+	while(1)
 	{    
 		if (frame_id!=queue.img_id)
 		{       	       		
 			r_timer.start();
 			pthread_mutex_lock(&(queue_lock));			
 			queue.image.copyTo(frame);
-			//for(int i=0;i<240;i++) memcpy(signarea.data+i*320*3,queue.image.data+320*3*(i*2+1),320*3);
-			//memcpy(linearea.data,queue.image.data+120*640*3,120*640*3);
 			frame_id = queue.img_id;
 			pthread_mutex_unlock(&(queue_lock));
 			
-			
 			recognize.recognize_line(frame);
-			//recognize.recognize_line(linearea);
 			if(recognize.mysign.sign == sign_none) recognize.recognize_sign(frame);
 			else recognize.handle_sign(frame);
 			recognize.handle_line();
@@ -324,9 +316,7 @@ void* recognize_fnc(void *ptr)
 			pthread_mutex_unlock(&(queue_engine_lock));
 			
 			r_timer.stop();
-			printf("runtime: %ld ms\n",r_timer.get());
-
-			//wmain.showimg(frame);				
+			printf("runtime: %ld ms\n",r_timer.get());			
 		}
 		else
 		{
