@@ -6,8 +6,7 @@
 #include "server.hpp" //contains sending telemetry functions
 #include "recognition.hpp" //signs and line recognition
 #include "features.hpp" //contains features like color and fps counters
-#include "arduino.hpp" //functions to work with arduino board
-#include "window.hpp" // class contains functions to create and show GUI  
+#include "arduino.hpp" //functions to work with arduino board 
 #include "Engine.hpp" //main structure
 #include "timer.hpp" //profiling functions
 #include "telemetry.hpp"
