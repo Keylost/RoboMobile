@@ -3,10 +3,12 @@
 #define upwm_pin 9 //пин для управления скоростью мотора. канал M1 на шилде
 #define udir_pin 7 //пин для управления направлением вращения. канал M1 на шилде
 #define uservo_pin 3 //пин куда подключен сервомотор
-#define power_indicator_pin 13 //передние и задние фары
-#define stop_indicator_pin 11 //стоп сигналы
-#define left_indicator_pin 6 //левый поворотник
-#define right_indicator_pin 5 //правый поворотник
+#define head_light_pin A0 //передние фары
+#define right_indicator_pin A1 //правый поворотник
+#define left_indicator_pin A2 //левый поворотник
+#define stop_indicator_pin A3 //стоп сигналы
+#define rear_light_pin A4 // задние фары
+#define gnd_analog_pin A5 //масса
 #define deviation 10 //значение угла поворота сервомотора в градусах при котором будут включены поворотники
 
 
@@ -97,11 +99,18 @@ void setup(void)
   pinMode(4,OUTPUT);
   digitalWrite(4,HIGH);  
   motor1.set_direction(FORWARD);
-  pinMode(power_indicator_pin,OUTPUT);
+  pinMode(gnd_analog_pin,OUTPUT);
+  pinMode(rear_light_pin,OUTPUT);
+  pinMode(head_light_pin,OUTPUT);
   pinMode(stop_indicator_pin,OUTPUT);
   pinMode(left_indicator_pin,OUTPUT);
   pinMode(right_indicator_pin,OUTPUT);
-  digitalWrite(power_indicator_pin, HIGH);
+  digitalWrite(rear_light_pin, HIGH);
+  digitalWrite(head_light_pin, HIGH);
+  digitalWrite(gnd_analog_pin,LOW);
+  digitalWrite(left_indicator_pin,LOW);
+  digitalWrite(right_indicator_pin,LOW);
+  digitalWrite(stop_indicator_pin,LOW);
 }
 
 int Speed = 0,old_Speed=0; // Скорость
