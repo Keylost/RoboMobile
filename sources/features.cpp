@@ -59,7 +59,7 @@ int color_counter(Mat& roi, const char* color)
 				for(int col=0;col<roi.cols;col++)
 				{
 					b=row[col*3];g=row[col*3+1];r=row[col*3+2];
-					if ((b - max(g, r))>0) counter++;
+					if ((b - max(g, r))>20) counter++;
 				}
 			}
 	}

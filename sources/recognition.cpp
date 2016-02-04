@@ -103,6 +103,66 @@ void Recognition::handle_sign(const Mat& orig)
 		}
 		break;
 	}
+	case sign_giveway:
+	{
+		if(timer==0) 
+		{
+			time(&timer);
+		}
+		else
+		{
+			time_t diff = time(NULL)-timer;
+			if(diff<=0) 
+			{		
+				break;
+			}
+			else if(diff<=3)
+			{
+				engine->speed = speed_stop;
+			}
+			else if(diff<=5)
+			{
+				break;
+			}
+			else 
+			{
+				timer=0;
+				mysign.sign = sign_none;
+			}
+		
+		}		
+		break;
+	}
+	case sign_mainroad:
+	{
+		if(timer==0) 
+		{
+			time(&timer);
+		}
+		else
+		{
+			time_t diff = time(NULL)-timer;
+			if(diff<=0) 
+			{		
+				break;
+			}
+			else if(diff<=3)
+			{
+				engine->speed = speed_stop;
+			}
+			else if(diff<=5)
+			{
+				break;
+			}
+			else 
+			{
+				timer=0;
+				mysign.sign = sign_none;
+			}
+		
+		}		
+		break;
+	}
 	case sign_crosswalk:
 	{		
 		if(timer==0) 
@@ -219,7 +279,21 @@ void Recognition::recognize_sign(const Mat& orig)
 
 		Rect boundingarea = boundingRect(approx);
 		Mat rr =  frame(boundingarea);
-		if (approx.size() == 4) // SING?
+		
+		if (approx.size() == 3)
+		{
+			int colors = color_counter(rr,"red");			
+			int colors2 = color_counter(rr,"black");
+			int colors3 = color_counter(rr,"blue");
+			if((colors2 > 80 || colors3>80)||colors<700)	continue;
+			LOG("[I]: Giveway sign found");
+			//printf("r: %d, blue: %d, black %d\n",colors,colors3,colors2);
+			mysign.area = boundingarea;
+			mysign.sign = sign_giveway;
+			return;
+		}
+		
+		else if (approx.size() == 4) // SING?
 		{
 			double dy,dx,l1,l2,l3,l4; 
 			dx =approx[1].x-approx[0].x; dy = approx[1].y-approx[0].y;
@@ -272,22 +346,27 @@ void Recognition::recognize_sign(const Mat& orig)
 				if (abs(l4 - l2) < 0.1*l4 && abs(l3 - l1) < 0.1*l3)
 				{
 					int colors = color_counter(rr,"blue");
-					if (colors>area*0.5 && colors<area*0.92)
+					int colors2 = color_counter(rr,"black");
+					printf("blue %d black %d\n",colors,colors2);
+					if (colors>area*0.5 && colors<area*0.92 && colors2>area*0.05 && colors2<area*0.37)
 					{
-						colors = color_counter(rr,"black");
-						if(colors>area*0.05 && colors<area*0.37)
-						{
-							mysign.sign = sign_crosswalk;
-							mysign.area = boundingarea;
-							LOG("[I]: Crosswalk found");
-							return;
-						}
+						mysign.sign = sign_crosswalk;
+						mysign.area = boundingarea;
+						LOG("[I]: Crosswalk found");
+						return;
+					}
+					else if(colors<50 && colors2>50)
+					{
+						mysign.sign = sign_mainroad;
+						mysign.area = boundingarea;
+						LOG("[I]: Mainroad sign found");
+						return;
 					}
 				}
 			}
 		}
 
-		if (approx.size() == 8 && area>4000) //STOP SIGN
+		else if (approx.size() == 8 && area>4000) //STOP SIGN
 		{			
 			int colors = color_counter(rr,"red");
 			if(colors>1000) //check if it is really stop  && colors<6200
