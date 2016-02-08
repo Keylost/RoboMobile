@@ -64,7 +64,6 @@ uint8_t get_light2(Mat& roi)
  * Например, устанавливает таймер, определяющий время, на которое робот должен сбросить скорость при найденнном знаке "пешеходный переход"
  * или время, в течении которого робот будет стоять у знака "стоп".
  */
-Point TplMatch( Mat &img, Mat &mytemplate, double &maxVal);
 bool red_catch = false;
 bool sign_catch = false;
 Mat templ;
