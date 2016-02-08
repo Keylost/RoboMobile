@@ -64,7 +64,10 @@ uint8_t get_light2(Mat& roi)
  * Например, устанавливает таймер, определяющий время, на которое робот должен сбросить скорость при найденнном знаке "пешеходный переход"
  * или время, в течении которого робот будет стоять у знака "стоп".
  */
+Point TplMatch( Mat &img, Mat &mytemplate, double &maxVal);
 bool red_catch = false;
+bool sign_catch = false;
+Mat templ;
 void Recognition::handle_sign(const Mat& orig)
 {
 	switch(mysign.sign)
@@ -135,32 +138,26 @@ void Recognition::handle_sign(const Mat& orig)
 	}
 	case sign_mainroad:
 	{
-		if(timer==0) 
-		{
-			time(&timer);
+		if(!sign_catch)
+		{			
+			Mat vr = orig(Rect(Point(orig.cols/2 + mysign.area.x,mysign.area.y),Point(orig.cols/2 + mysign.area.x+mysign.area.width,mysign.area.y+mysign.area.height)));
+			sign_catch = true;
+			cvtColor(vr,templ,CV_BGR2GRAY);
+			break;
 		}
-		else
+		Mat roi = orig(Rect(Point(orig.cols/2,0), Point(orig.cols-1,orig.rows/2)));
+		cvtColor(roi,roi,CV_BGR2GRAY);
+		double maxval = 0;
+		Point matchLoc = TplMatch(roi, templ,maxval);
+		if(maxval<0.6)
 		{
-			time_t diff = time(NULL)-timer;
-			if(diff<=0) 
-			{		
-				break;
-			}
-			else if(diff<=3)
-			{
-				engine->speed = speed_stop;
-			}
-			else if(diff<=5)
-			{
-				break;
-			}
-			else 
-			{
-				timer=0;
-				mysign.sign = sign_none;
-			}
-		
-		}		
+			sign_catch = false;
+			mysign.sign = sign_none;
+			break;
+		}
+		mysign.area = Rect(matchLoc, Point(matchLoc.x + templ.cols , matchLoc.y + templ.rows ));
+		Mat vr = orig(Rect(Point(orig.cols/2 + mysign.area.x,mysign.area.y),Point(orig.cols/2 + mysign.area.x+mysign.area.width,mysign.area.y+mysign.area.height)));
+		cvtColor(vr,templ,CV_BGR2GRAY);
 		break;
 	}
 	case sign_crosswalk:
@@ -253,11 +250,12 @@ void Recognition::handle_sign(const Mat& orig)
 
 void Recognition::recognize_sign(const Mat& orig)
 { 
-	Mat result,frame = orig(Rect(cv::Point(orig.cols/2,0), cv::Point(orig.cols-1,orig.rows/2)));
+	Mat result,frame = orig(Rect(Point(orig.cols/2,0), Point(orig.cols-1,orig.rows/2)));
 	frame.copyTo(result);
 	cvtColor(result,result,CV_BGR2GRAY);
 	vector<std::vector<cv::Point> > contours;
 	vector<cv::Vec4i> hierarchy;
+	simple_hist colors;
 	
 	#ifdef canny
 	equalizeHist(result, result);
@@ -279,15 +277,12 @@ void Recognition::recognize_sign(const Mat& orig)
 
 		Rect boundingarea = boundingRect(approx);
 		Mat rr =  frame(boundingarea);
+		color_counter(rr,colors);
 		
 		if (approx.size() == 3)
 		{
-			int colors = color_counter(rr,"red");			
-			int colors2 = color_counter(rr,"black");
-			int colors3 = color_counter(rr,"blue");
-			if((colors2 > 80 || colors3>80)||colors<700)	continue;
+			if(colors.red<1000)	continue;
 			LOG("[I]: Giveway sign found");
-			//printf("r: %d, blue: %d, black %d\n",colors,colors3,colors2);
 			mysign.area = boundingarea;
 			mysign.sign = sign_giveway;
 			return;
@@ -309,8 +304,7 @@ void Recognition::recognize_sign(const Mat& orig)
 				l4 = sqrt((dx*dx) + (dy*dy));
 				if (abs(l4 - l2) < 0.1*l4 && abs(l3 - l1) < 0.1*l3)
 				{
-					int colors = color_counter(rr, "black");
-					if (colors>area*0.4 && colors < area*0.9)
+					if (colors.black>area*0.4 && colors.black < area*0.9)
 					{
 						LOG("[I]: Traffic light found");
 						mysign.area = boundingarea;
@@ -327,8 +321,7 @@ void Recognition::recognize_sign(const Mat& orig)
 				l4 = sqrt((dx*dx) + (dy*dy));
 				if (abs(l4 - l2) < 0.1*l4 && abs(l3 - l1) < 0.1*l3)
 				{
-					int colors = color_counter(rr, "black");
-					if (colors>area*0.4 && colors < area*0.9)
+					if (colors.black>area*0.4 && colors.black < area*0.9)
 					{
 						LOG("[I]: Start raffic light found");
 						mysign.area = boundingarea;
@@ -336,7 +329,7 @@ void Recognition::recognize_sign(const Mat& orig)
 						return;
 					}
 				}
-			}				
+			}
 			else if(dl>=0.9&&dl<=1.1) //crosswalk
 			{
 				dx = approx[1].x - approx[0].x; dy = approx[3].y - approx[2].y;
@@ -345,17 +338,15 @@ void Recognition::recognize_sign(const Mat& orig)
 				l4 = sqrt((dx*dx) + (dy*dy));
 				if (abs(l4 - l2) < 0.1*l4 && abs(l3 - l1) < 0.1*l3)
 				{
-					int colors = color_counter(rr,"blue");
-					int colors2 = color_counter(rr,"black");
-					printf("blue %d black %d\n",colors,colors2);
-					if (colors>area*0.5 && colors<area*0.92 && colors2>area*0.05 && colors2<area*0.37)
+					printf("blue %d, black %d yellow %d\n",colors.blue,colors.black,colors.yellow);
+					if (colors.blue>area*0.5 && colors.blue<area*0.92 && colors.black>area*0.05 && colors.black<area*0.37 && colors.yellow<area*0.1)
 					{
 						mysign.sign = sign_crosswalk;
 						mysign.area = boundingarea;
 						LOG("[I]: Crosswalk found");
 						return;
 					}
-					else if(colors<50 && colors2>50)
+					else if(colors.yellow>900 && colors.blue<area*0.1)
 					{
 						mysign.sign = sign_mainroad;
 						mysign.area = boundingarea;
@@ -367,10 +358,8 @@ void Recognition::recognize_sign(const Mat& orig)
 		}
 
 		else if (approx.size() == 8 && area>4000) //STOP SIGN
-		{			
-			int colors = color_counter(rr,"red");
-			if(colors>1000) //check if it is really stop  && colors<6200
-			//if(colors>0.3*area)
+		{
+			if(colors.red>1000) //check if it is really stop
 			{
 				mysign.sign = sign_stop;
 				mysign.area = boundingarea;
@@ -539,18 +528,36 @@ void Recognition::handle_line()
 		if(engine->angle<ANGLE_MIN) engine->angle =ANGLE_MIN;
 		else if(engine->angle>ANGLE_MAX) engine->angle =ANGLE_MAX;
 		//calculate angle end
-				
+		
 		//calculate speed begin								
 		else if(mysign.sign==sign_none)
 		{
 			int ee = abs(engine->angle - ANGLE_CENTER);
 			engine->speed = MAX_SPEED - ee*((MAX_SPEED-MIN_SPEED)/ANGLE_RANGE); //
 		}
-		//calculate speed end				
+		//calculate speed end
 	}
 	else
 	{
 		engine->speed = 0;
 		LOG("[W]: black line not found");
 	}
+}
+
+///------- template matching -----------------------------------------------------------------------------------------------
+
+Point TplMatch(Mat &img, Mat &mytemplate, double &maxVal)
+{
+  int result_cols = img.cols - mytemplate.cols + 1;
+  int result_rows = img.rows - mytemplate.rows + 1;
+  Mat result = Mat(result_rows, result_cols,CV_32FC1);
+  double minVal;
+  Point  minLoc, maxLoc, matchLoc;
+
+  matchTemplate(img, mytemplate, result, CV_TM_CCOEFF_NORMED);
+
+  minMaxLoc(result, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
+  matchLoc = maxLoc;
+  printf("minval %f maxval %f\n",minVal,maxVal);
+  return matchLoc;
 }

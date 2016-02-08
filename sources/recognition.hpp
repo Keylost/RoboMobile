@@ -28,3 +28,5 @@ void handle_sign(const cv::Mat& image);
 void recognize_sign(const cv::Mat& image);
 void recognize_line(const cv::Mat& image);
 };
+
+Point TplMatch( Mat &img, Mat &mytemplate, double &maxVal);

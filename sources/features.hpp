@@ -23,4 +23,12 @@ public:
     double get_fps();
 };
 
-int color_counter(cv::Mat& roi, const char* color);
+struct simple_hist
+{
+	uint32_t red = 0;
+	uint32_t blue = 0;
+	uint32_t black = 0;
+	uint32_t yellow =0;
+};
+
+void color_counter(Mat& roi, simple_hist &color);

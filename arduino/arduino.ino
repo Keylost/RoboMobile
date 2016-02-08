@@ -16,6 +16,14 @@
 #define angle_center 90
 #define speed_min 450
 
+int Speed = 0,old_Speed=0; // Скорость
+int DIR = 0;
+int Corner = 90,old_Corner = 0; // угол поворота в градусах
+Servo myservo;
+char cur_state = 0;
+int kod = 0;
+unsigned long time;
+
 enum directions
 {
   FORWARD = 1,
@@ -74,23 +82,6 @@ class Motor
 
 Motor motor1(upwm_pin,udir_pin);
 
-void full_stop()
-{
-  for(int i=0;i<5;i++)
-  {
-  motor1.set_direction(BACKWARD);
-  motor1.set_speed_digit(200);
-  motor1.set_direction(FORWARD);
-  motor1.set_speed_digit(200);
-  }
-}
-
-Servo myservo;
-
-char cur_state = 0;
-int kod = 0;
-unsigned long time;
-
 void setup(void)
 {
   Serial.begin(115200);
@@ -111,12 +102,27 @@ void setup(void)
   digitalWrite(left_indicator_pin,LOW);
   digitalWrite(right_indicator_pin,LOW);
   digitalWrite(stop_indicator_pin,LOW);
+  
+  //OCR0A = 0xAF;
+  //TIMSK0 |= _BV(OCIE0A);
+  
 }
 
-int Speed = 0,old_Speed=0; // Скорость
-int DIR = 0;
-int Corner = 90,old_Corner = 0; // угол поворота в градусах
-//boolean stay = false;
+/*
+boolean state = false;
+
+SIGNAL(TIMER0_COMPA_vect) 
+{
+ if(state)
+ {
+   state = false;
+ }
+ else
+ {
+   state = true;
+ }
+}
+*/
 
 void loop(void)
 {
@@ -138,19 +144,6 @@ void loop(void)
       digitalWrite(stop_indicator_pin, HIGH);
       digitalWrite(upwm_pin, LOW);
     }
-    /*
-    if(!stay)
-    {
-    motor1.set_direction(BACKWARD);
-    for(int i=0;i<20;i++)
-    {
-      motor1.set_speed_digit(999);
-    }
-    digitalWrite(upwm_pin, LOW);
-    motor1.set_direction(FORWARD);
-    stay = true;
-    }
-    */
   }
   else
   {
