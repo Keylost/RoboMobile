@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include "videomaker.hpp"
 #include "config.hpp"
+#include <pthread.h>
 //#include "capture.hpp" //frames capture functions
 
 using namespace cv;

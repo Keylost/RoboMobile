@@ -11,6 +11,7 @@
 #define gnd_analog_pin A5 //масса
 #define deviation 10 //значение угла поворота сервомотора в градусах при котором будут включены поворотники
 
+#define turn_signal_freq 500 //частота моргания поворотников в миллисекундах
 
 #define angle_range 35
 #define angle_center 90
@@ -23,6 +24,12 @@ Servo myservo;
 char cur_state = 0;
 int kod = 0;
 unsigned long time;
+unsigned long right_time_indicator;
+unsigned long left_time_indicator;
+unsigned long time_current;
+boolean turn_right_light;
+boolean turn_left_light;
+
 
 enum directions
 {
@@ -102,12 +109,18 @@ void setup(void)
   digitalWrite(left_indicator_pin,LOW);
   digitalWrite(right_indicator_pin,LOW);
   digitalWrite(stop_indicator_pin,LOW);
-  
+  time = 0;
+  right_time_indicator = 0;
+  left_time_indicator = 0;
+  time_current = 0;
+  turn_right_light = false;
+  turn_left_light = false;
   //OCR0A = 0xAF;
   //TIMSK0 |= _BV(OCIE0A);
   
 }
 
+void turnsignal_illumination();
 /*
 boolean state = false;
 
@@ -126,8 +139,10 @@ SIGNAL(TIMER0_COMPA_vect)
 
 void loop(void)
 {
+  time_current = millis();
+  
   if(Corner!=old_Corner) myservo.write(Corner);  //set up corner
-  if((millis()-time)>1000)
+  if((time_current-time)>1000)
   {
      Speed = 0;   
   }
@@ -149,31 +164,16 @@ void loop(void)
   {
     digitalWrite(stop_indicator_pin, LOW);
     motor1.set_speed_digit(Speed);
-    //stay=false;
-  }
-  if(Corner>90+deviation)
-  {
-    digitalWrite(right_indicator_pin, HIGH);
-  }
-  else
-  {
-    digitalWrite(right_indicator_pin, LOW);
-  }
-  if(Corner<90-deviation)
-  {
-    digitalWrite(left_indicator_pin, HIGH);
-  }
-  else
-  {
-    digitalWrite(left_indicator_pin, LOW);
   }
   
+  turnsignal_illumination(); //управляет мерцанием поворотников
+
  old_Speed = Speed; 
  old_Corner = Corner;
  if (Serial.available() > 0)
    {
        char c = Serial.read();
-       time = millis();
+       time = time_current;
        switch(cur_state)
        {
         case 1:
@@ -198,5 +198,74 @@ void loop(void)
        }
 
    }
+}
+
+void turnsignal_illumination()
+{
+  if(Corner>90+deviation)
+  {
+    if(!turn_right_light)
+    {
+      if(right_time_indicator==0)
+      {
+        turn_right_light = true;
+        digitalWrite(right_indicator_pin, HIGH);
+        right_time_indicator = time_current;
+      }
+      else if(time_current - right_time_indicator > 2*turn_signal_freq)
+      {
+        turn_right_light = false;
+        right_time_indicator = 0;
+        digitalWrite(right_indicator_pin, LOW);
+      }
+    }
+    else
+    {
+      if(time_current - right_time_indicator > turn_signal_freq)
+      {
+        turn_right_light = false;
+        digitalWrite(right_indicator_pin, LOW);       
+      }
+    }
+  }
+  else
+  {
+    turn_right_light = false;
+    right_time_indicator = 0;
+    digitalWrite(right_indicator_pin, LOW);
+  }
+  
+  if(Corner<90-deviation)
+  {
+    if(!turn_left_light)
+    {
+      if(left_time_indicator==0)
+      {
+        turn_left_light = true;
+        digitalWrite(left_indicator_pin, HIGH);
+        left_time_indicator = time_current;
+      }
+      else if(time_current - left_time_indicator > 2*turn_signal_freq)
+      {
+        turn_left_light = false;
+        left_time_indicator = 0;
+        digitalWrite(left_indicator_pin, LOW);
+      }
+    }
+    else
+    {
+      if(time_current - left_time_indicator > turn_signal_freq)
+      {
+        turn_left_light = false;
+        digitalWrite(left_indicator_pin, LOW);       
+      }
+    }
+  }
+  else
+  {
+    turn_left_light = false;
+    left_time_indicator = 0;
+    digitalWrite(left_indicator_pin, LOW);
+  }
 }
 
