@@ -107,32 +107,26 @@ void Recognition::handle_sign(const Mat& orig)
 	}
 	case sign_giveway:
 	{
-		if(timer==0) 
-		{
-			time(&timer);
+		if(!sign_catch)
+		{			
+			Mat vr = orig(Rect(Point(orig.cols/2 + mysign.area.x,mysign.area.y),Point(orig.cols/2 + mysign.area.x+mysign.area.width,mysign.area.y+mysign.area.height)));
+			sign_catch = true;
+			cvtColor(vr,templ,CV_BGR2GRAY);
+			break;
 		}
-		else
+		Mat roi = orig(Rect(Point(orig.cols/2,0), Point(orig.cols-1,orig.rows/2)));
+		cvtColor(roi,roi,CV_BGR2GRAY);
+		double maxval = 0;
+		Point matchLoc = TplMatch(roi, templ,maxval);
+		if(maxval<0.6)
 		{
-			time_t diff = time(NULL)-timer;
-			if(diff<=0) 
-			{		
-				break;
-			}
-			else if(diff<=3)
-			{
-				engine->speed = speed_stop;
-			}
-			else if(diff<=5)
-			{
-				break;
-			}
-			else 
-			{
-				timer=0;
-				mysign.sign = sign_none;
-			}
-		
-		}		
+			sign_catch = false;
+			mysign.sign = sign_none;
+			break;
+		}
+		mysign.area = Rect(matchLoc, Point(matchLoc.x + templ.cols , matchLoc.y + templ.rows ));
+		Mat vr = orig(Rect(Point(orig.cols/2 + mysign.area.x,mysign.area.y),Point(orig.cols/2 + mysign.area.x+mysign.area.width,mysign.area.y+mysign.area.height)));
+		cvtColor(vr,templ,CV_BGR2GRAY);
 		break;
 	}
 	case sign_mainroad:
@@ -265,13 +259,13 @@ void Recognition::recognize_sign(const Mat& orig)
 	
 	findContours(result, contours, hierarchy, CV_RETR_LIST, CV_CHAIN_APPROX_NONE, cv::Point(0, 0) );
 	mysign.sign = sign_none;
-	std::vector<cv::Point> approx;
+	vector<Point> approx;
 	
 	for(size_t i=0;i<contours.size();i++)
 	{
-		cv::approxPolyDP(cv::Mat(contours[i]), approx, cv::arcLength(cv::Mat(contours[i]), true)*0.03, true); // Approximate contour with accuracy proportional	to the contour perimeter
-		double area = std::fabs(cv::contourArea((Mat)contours[i]));
-		if (area < 1000 || area > 10000|| !cv::isContourConvex(approx)) // Skip small or non-convex objects
+		approxPolyDP(Mat(contours[i]), approx, arcLength(Mat(contours[i]), true)*0.03, true); // Approximate contour with accuracy proportional	to the contour perimeter
+		double area = fabs(contourArea((Mat)contours[i]));
+		if (area < 1000 || area > 10000|| !isContourConvex(approx)) // Skip small or non-convex objects
 			continue;
 
 		Rect boundingarea = boundingRect(approx);
@@ -280,7 +274,8 @@ void Recognition::recognize_sign(const Mat& orig)
 		
 		if (approx.size() == 3)
 		{
-			if(colors.red<1000)	continue;
+			if(colors.red<1000 || colors.white<500 || colors.blue>100 || colors.yellow>100 ||colors.red>2500)	continue;
+			printf("red %d white %d blue %d yellow %d black %d\n",colors.red,colors.white,colors.blue,colors.yellow,colors.black);
 			LOG("[I]: Giveway sign found");
 			mysign.area = boundingarea;
 			mysign.sign = sign_giveway;
@@ -451,7 +446,13 @@ void Recognition::recognize_line(const Mat& orig)
 			}
 			
 		}
-		
+		/*
+		else if(i==gray.rows-1)
+		{
+			rb_count = 0;
+			break;
+		}
+		*/
 		
 		xmin+=2;
 		xmax-=2;
@@ -557,6 +558,6 @@ Point TplMatch(Mat &img, Mat &mytemplate, double &maxVal)
 
   minMaxLoc(result, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
   matchLoc = maxLoc;
-  printf("minval %f maxval %f\n",minVal,maxVal);
+  //printf("minval %f maxval %f\n",minVal,maxVal);
   return matchLoc;
 }

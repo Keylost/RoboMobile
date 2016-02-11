@@ -29,6 +29,7 @@ struct simple_hist
 	uint32_t blue = 0;
 	uint32_t black = 0;
 	uint32_t yellow =0;
+	uint32_t white = 0;
 };
 
 void color_counter(Mat& roi, simple_hist &color);

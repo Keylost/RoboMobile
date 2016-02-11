@@ -40,6 +40,7 @@ void color_counter(Mat& roi, simple_hist &color)
 	color.blue = 0;
 	color.black = 0;
 	color.yellow =0;
+	color.white =0;
 	
 	for(int32_t rows=0;rows<roi.rows;rows++)
 	{
@@ -47,15 +48,13 @@ void color_counter(Mat& roi, simple_hist &color)
 		for(int32_t col=0;col<roi.cols;col++)
 		{
 			b=row[col*3];g=row[col*3+1];r=row[col*3+2];
-			//bg = 
 			if(b<=128 && abs(b-g)<20 && abs(b-r)<20 && abs(r-g)<20) color.black++;
-			else if(b>128 && abs(b-g)<20 && abs(b-r)<20 && abs(r-g)<20) continue;
+			else if(b>128 && abs(b-g)<20 && abs(b-r)<20 && abs(r-g)<20) color.white++;
 			else
 			{
-			//if(b>200&&g>200&&r>200) continue;
-			if(r>(g+b)*1.3) color.red++;
-			if((b - max(g, r))>30) color.blue++;
-			if(g-b>30 && r-b>30) color.yellow++;
+				if(r>(g+b)*1.3) color.red++;
+				if((b - max(g, r))>30) color.blue++;
+				if(g-b>30 && r-b>30) color.yellow++;
 			}
 		}
 	}	

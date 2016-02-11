@@ -1,18 +1,29 @@
 #include <Servo.h>
 
+//#define orange_car
+
 #define upwm_pin 9 //пин для управления скоростью мотора. канал M1 на шилде
 #define udir_pin 7 //пин для управления направлением вращения. канал M1 на шилде
 #define uservo_pin 3 //пин куда подключен сервомотор
+
+#ifndef orange_car
 #define head_light_pin A0 //передние фары
-#define right_indicator_pin A1 //правый поворотник
-#define left_indicator_pin A2 //левый поворотник
+#define left_indicator_pin A1 //левый поворотник
+#define right_indicator_pin A2 //правый поворотник
 #define stop_indicator_pin A3 //стоп сигналы
 #define rear_light_pin A4 // задние фары
 #define gnd_analog_pin A5 //масса
-#define deviation 10 //значение угла поворота сервомотора в градусах при котором будут включены поворотники
+#else //в этом блоке неверный первоначальный вариант распиновки. только для авто с оранжевым кузовом
+#define stop_indicator_pin A0 //стоп сигналы
+#define head_light_pin A1 //передние фары
+#define rear_light_pin A1 // задние фары
+#define right_indicator_pin A3 //правый поворотник
+#define left_indicator_pin A4 //левый поворотник
+#define gnd_analog_pin A5 //масса
+#endif
 
 #define turn_signal_freq 500 //частота моргания поворотников в миллисекундах
-
+#define deviation 10 //значение угла поворота сервомотора в градусах при котором будут включены поворотники
 #define angle_range 35
 #define angle_center 90
 #define speed_min 450
