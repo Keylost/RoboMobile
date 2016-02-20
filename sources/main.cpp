@@ -285,9 +285,8 @@ void* recognize_fnc(void *ptr)
 	System *syst = (System *)ptr;
 	unsigned int frame_id=0;
 	Mat frame;
-	Engine engine; //main structure for robot control
-	Recognition recognize(&engine);
-	recognize.myline.robot_center = syst->robot_center; //init center point
+	Recognition recognize(*syst);
+	
 	robotimer r_timer;
 	
 	while(1)
@@ -305,13 +304,13 @@ void* recognize_fnc(void *ptr)
 			else recognize.handle_sign(frame);
 			recognize.handle_line();
 			
-			if(!queue_engine.manual.power) engine.speed = 0;
+			if(!queue_engine.manual.power) recognize.engine.speed = 0;
 			
-			memcpy(&engine.myline,&recognize.myline,sizeof(line_data));
-			memcpy(&engine.mysign,&recognize.mysign,sizeof(sign_data));
+			//memcpy(&engine.myline, &recognize.myline, sizeof(line_data));
+			//memcpy(&engine.mysign, &recognize.mysign, sizeof(sign_data));
 			
 			pthread_mutex_lock(&(queue_engine_lock));
-			memcpy(&queue_engine.engine,&engine,sizeof(Engine));
+			memcpy(&queue_engine.engine,&recognize.engine,sizeof(Engine));
 			queue_engine.id++;
 			pthread_mutex_unlock(&(queue_engine_lock));
 			

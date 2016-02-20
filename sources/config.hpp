@@ -2,6 +2,9 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include <opencv2/opencv.hpp>
+
+using namespace cv;
 
 enum VALUE_TYPE
 {
@@ -26,6 +29,9 @@ class System
 	bool videomaker;
 	char videoname[80];
 	
+	Rect linearea;
+	Rect signarea;
+	
 	int capture_width;
 	int capture_height;
 	int image_quality;
@@ -34,11 +40,13 @@ class System
 	{
 		MODE = CAMERA;
 		capture_width = 640;
-		capture_height = 480;
+		capture_height = 360;
 		snprintf(arduino_port,30,"/dev/ttyACM0");
 		image_quality = 80;
 		videomaker = false;
 		robot_center = 320;
+		signarea = Rect( Point( capture_width/2, 0 ), Point( capture_width-1, capture_height/2 ) );
+		linearea = Rect( Point( 0, capture_height - capture_height/4 ), Point( capture_width-1, capture_height-1) );
 	}
 };
 

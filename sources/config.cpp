@@ -1,6 +1,6 @@
 #include "config.hpp"
 
-const uint16_t nameslenght = 10;
+const uint16_t nameslenght = 20;
 config names[nameslenght];
 uint16_t nnum = 0;
 
@@ -88,7 +88,8 @@ void goto_newline(FILE *fp)
  */
 void System::init()
 {
-	
+	int sbx,sby,sex,sey;
+	int lbx,lby,lex,ley;
 	FILE *fp;
 	char buf[180];	
 	fp = fopen("../configs/config.conf","r");
@@ -98,26 +99,72 @@ void System::init()
 		return;
 	}
 	
-	snprintf(names[0].name,180,"arduino_port");
-	names[0].type = STRING_VAL;
-	names[0].value = arduino_port;
+	int pnum =0;
 	
-	snprintf(names[1].name,180,"capture_width");
-	names[1].type = INT_VAL;
-	names[1].value = &(capture_width);
+	snprintf(names[pnum].name,180,"arduino_port");
+	names[pnum].type = STRING_VAL;
+	names[pnum].value = arduino_port;
+	pnum++;
 	
-	snprintf(names[2].name,180,"capture_height");
-	names[2].type = INT_VAL;
-	names[2].value = &(capture_height);
+	snprintf(names[pnum].name,180,"capture_width");
+	names[pnum].type = INT_VAL;
+	names[pnum].value = &(capture_width);
+	pnum++;
 	
-	snprintf(names[3].name,180,"image_quality");
-	names[3].type = INT_VAL;
-	names[3].value = &(image_quality);
+	snprintf(names[pnum].name,180,"capture_height");
+	names[pnum].type = INT_VAL;
+	names[pnum].value = &(capture_height);
+	pnum++;
 	
-	snprintf(names[4].name,180,"robot_center");
-	names[4].type = INT_VAL;
-	names[4].value = &(robot_center);
+	snprintf(names[pnum].name,180,"image_quality");
+	names[pnum].type = INT_VAL;
+	names[pnum].value = &(image_quality);
+	pnum++;
 	
+	snprintf(names[pnum].name,180,"robot_center");
+	names[pnum].type = INT_VAL;
+	names[pnum].value = &(robot_center);
+	pnum++;
+	
+	snprintf(names[pnum].name,180,"sign_bx");
+	names[pnum].type = INT_VAL;
+	names[pnum].value = &(sbx);
+	pnum++;
+	
+	snprintf(names[pnum].name,180,"sign_by");
+	names[pnum].type = INT_VAL;
+	names[pnum].value = &(sby);
+	pnum++;
+	
+	snprintf(names[pnum].name,180,"sign_ey");
+	names[pnum].type = INT_VAL;
+	names[pnum].value = &(sey);
+	pnum++;
+	
+	snprintf(names[pnum].name,180,"sign_ex");
+	names[pnum].type = INT_VAL;
+	names[pnum].value = &(sex);
+	pnum++;
+	
+	snprintf(names[pnum].name,180,"line_bx");
+	names[pnum].type = INT_VAL;
+	names[pnum].value = &(lbx);
+	pnum++;
+	
+	snprintf(names[pnum].name,180,"line_by");
+	names[pnum].type = INT_VAL;
+	names[pnum].value = &(lby);
+	pnum++;
+	
+	snprintf(names[pnum].name,180,"line_ey");
+	names[pnum].type = INT_VAL;
+	names[pnum].value = &(ley);
+	pnum++;
+	
+	snprintf(names[pnum].name,180,"line_ex");
+	names[pnum].type = INT_VAL;
+	names[pnum].value = &(lex);
+	pnum++;
 	
 	while(fscanf(fp,"%s",buf)!=EOF)
 	{
@@ -145,5 +192,9 @@ void System::init()
 		
 		goto_newline(fp);
 	}
+	
+	signarea = Rect( Point( capture_width*(sbx/100.0), capture_height*(sby/100.0) ), Point( capture_width*(sex/100.0), capture_height*(sey/100.0) ) );
+	linearea = Rect( Point( capture_width*(lbx/100.0), capture_height*(lby/100.0) ), Point( capture_width*(lex/100.0), capture_height*(ley/100.0) ) );
+	
 	fclose(fp);
 }

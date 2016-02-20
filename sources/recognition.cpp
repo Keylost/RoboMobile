@@ -16,11 +16,17 @@ uint32_t speed_trafficlight  = 0; //скорость при обнаружени
  * Конструктор класса Recognition
  * Инициализирует поля начальными значениями
  */
-Recognition::Recognition(Engine* eng)
+Recognition::Recognition(System &syst)
 {
-	engine = eng;
+	//mysign = engine.mysign;
+	//myline = engine.myline;
+	
 	timer = 0;
 	mysign.sign = sign_none;
+	
+	myline.robot_center = syst.robot_center; //точка на кадре на которую будет выравниваться робот
+	signarea = syst.signarea;
+	linearea = syst.linearea;
 }
 
 /*
@@ -72,7 +78,7 @@ void Recognition::handle_sign(const Mat& orig)
 	switch(mysign.sign)
 	{
 	case sign_none:
-	{		
+	{
 		break;
 	}
 	case sign_stop:
@@ -85,12 +91,12 @@ void Recognition::handle_sign(const Mat& orig)
 		{
 			time_t diff = time(NULL)-timer;
 			if(diff<=0) 
-			{		
+			{
 				break;
 			}
 			else if(diff<=3)
 			{
-				engine->speed = speed_stop;
+				engine.speed = speed_stop;
 			}
 			else if(diff<=5)
 			{
@@ -101,7 +107,6 @@ void Recognition::handle_sign(const Mat& orig)
 				timer=0;
 				mysign.sign = sign_none;
 			}
-		
 		}
 		break;
 	}
@@ -168,7 +173,7 @@ void Recognition::handle_sign(const Mat& orig)
 			}
 			else if(diff<=4)
 			{
-				engine->speed = speed_crosswalk;
+				engine.speed = speed_crosswalk;
 			}
 			else 
 			{
@@ -198,14 +203,14 @@ void Recognition::handle_sign(const Mat& orig)
 		{
 			LOG("[I]: Red light found");
 			mysign.state = redlight;
-			engine->speed = speed_trafficlight;
+			engine.speed = speed_trafficlight;
 			break;
 		}
 		case 2:
 		{
 			LOG("[I]: Yellow light found");
 			mysign.state = yellowlight;
-			engine->speed = speed_trafficlight;
+			engine.speed = speed_trafficlight;
 			break;
 		}
 		case 3:
@@ -243,7 +248,7 @@ void Recognition::handle_sign(const Mat& orig)
 
 void Recognition::recognize_sign(const Mat& orig)
 { 
-	Mat result,frame = orig(Rect(Point(orig.cols/2,0), Point(orig.cols-1,orig.rows/2)));
+	Mat result,frame = orig(signarea);
 	frame.copyTo(result);
 	cvtColor(result,result,CV_BGR2GRAY);
 	vector<std::vector<cv::Point> > contours;
@@ -333,7 +338,7 @@ void Recognition::recognize_sign(const Mat& orig)
 				if (abs(l4 - l2) < 0.1*l4 && abs(l3 - l1) < 0.1*l3)
 				{
 					printf("blue %d, black %d yellow %d\n",colors.blue,colors.black,colors.yellow);
-					if (colors.blue>area*0.5 && colors.blue<area*0.92 && colors.black>area*0.05 && colors.black<area*0.37 && colors.yellow<area*0.1)
+					if (colors.blue>area*0.5 && colors.blue<area*0.92 && colors.black>area*0.05 && colors.black<area*0.37 && colors.yellow<area*0.4)
 					{
 						mysign.sign = sign_crosswalk;
 						mysign.area = boundingarea;
@@ -384,7 +389,7 @@ void Recognition::recognize_line(const Mat& orig)
 	uint32_t black=0;
 	int rb_cen =0,rb_count=0;
 	
-	roi = orig(Rect(Point(0,360),Point(639,479)));;
+	roi = orig(linearea);
 	cvtColor(roi,gray,CV_BGR2GRAY);
 	GaussianBlur(gray, gray, Size(7,7), 2, 0, BORDER_DEFAULT);	
 	
@@ -496,14 +501,14 @@ void Recognition::handle_line()
 			if(timer_line.get()<=0)
 			{
 				timer_line.start();
-				engine->speed=0;
+				engine.speed=0;
 				return;
 			}
 			else
 			{
 				if(timer_line.get()<=700)
 				{
-					engine->speed=0;
+					engine.speed=0;
 					return;
 				}
 				//else if(timer_line.get()>700 && timer_line.get()<9000) sl_passed = true;
@@ -521,25 +526,25 @@ void Recognition::handle_line()
 		
 		/* Вычислить угол поворота робота согласно его отклонению и заданным коэффициентам ПИД регулятора */
 		//engine->angle = 90 - PID(delta,(double)engine.angle); //PID regulator
-		engine->angle = ANGLE_CENTER - delta*1/6.7 - (delta- old_delta)*0.2; //простой PD регулятор; 6.7 - пропорциональная компонента, 0.2 - дифференциальная 
+		engine.angle = ANGLE_CENTER - delta*1/6.7 - (delta- old_delta)*0.2; //простой PD регулятор; 6.7 - пропорциональная компонента, 0.2 - дифференциальная 
 		old_delta = delta;
 		
 		/* Проверить вычисленное значение угла на выход за границы диапазона доступных углов сервопривода*/
-		if(engine->angle<ANGLE_MIN) engine->angle =ANGLE_MIN;
-		else if(engine->angle>ANGLE_MAX) engine->angle =ANGLE_MAX;
+		if(engine.angle<ANGLE_MIN) engine.angle =ANGLE_MIN;
+		else if(engine.angle>ANGLE_MAX) engine.angle =ANGLE_MAX;
 		//calculate angle end
 		
 		//calculate speed begin								
 		else if(mysign.sign==sign_none)
 		{
-			int ee = abs(engine->angle - ANGLE_CENTER);
-			engine->speed = MAX_SPEED - ee*((MAX_SPEED-MIN_SPEED)/ANGLE_RANGE); //
+			int ee = abs(engine.angle - ANGLE_CENTER);
+			engine.speed = MAX_SPEED - ee*((MAX_SPEED-MIN_SPEED)/ANGLE_RANGE); //
 		}
 		//calculate speed end
 	}
 	else
 	{
-		engine->speed = 0;
+		engine.speed = 0;
 		LOG("[W]: black line not found");
 	}
 }

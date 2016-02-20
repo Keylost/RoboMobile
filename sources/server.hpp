@@ -1,3 +1,13 @@
+/*
+ * Данный класс реализует серверные функции системы.
+ * Формат общения с клиентом после установки связи:
+ * 1. Отправляет сведения о конфигурации:
+ * ширина кадра - 2 байта (uint16_t)
+ * высота кадра - 2 байта (uint16_t)
+ * 
+ * область поиска знака - cv::Rect (sizeof(cv::Rect))
+ * область поиска линии - cv::Rect (sizeof(cv::Rect))
+ */
 #pragma once
 #include <stdlib.h>
 #include <stdint.h>
@@ -20,6 +30,7 @@ using namespace std;
 class Server
 {
 private:
+	System *sys;
 	bool is_send;
 	int sockfd;
 	int portno;

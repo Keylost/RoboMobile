@@ -63,6 +63,7 @@ void *receiv(void *ptr)
  */
 Server::Server(System &syst)
 {
+	sys = &syst;
 	isconnected=false;
 	parameters = std::vector<int>(2);
 	parameters[0] = CV_IMWRITE_JPEG_QUALITY; //jpeg
@@ -105,10 +106,13 @@ void Server::start()
      LOG("client connected");
      isconnected=true;
 
-     uint16_t width = 640;
-     uint16_t height = 480;
+     uint16_t width = (uint16_t)sys->capture_width;
+     uint16_t height = (uint16_t)sys->capture_height;
      send_data(&width, newsockfd, 2);
      send_data(&height, newsockfd, 2);
+     
+     send_data(&sys->signarea,newsockfd,sizeof(Rect));
+     send_data(&sys->linearea,newsockfd,sizeof(Rect));
      return;
 }
 
