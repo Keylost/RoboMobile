@@ -1,10 +1,20 @@
 #include <Servo.h>
 
 //#define orange_car
+//пины для энкодера
+//(!!! ардуино уно один из пинов обязательно на второй или третий пин
+//так как они с прерываниями, второй - любой
+//второй пин можно не использовать так как мы знаем направление движения
+//и важно определять только скорость
+#define encoder0PinA  2
+//#define encoder0PinB  5
 
-#define upwm_pin 9 //пин для управления скоростью мотора. канал M1 на шилде
+//выход на 5 вольт
+#define addition_vdd 11
+
+#define upwm_pin 6 //пин для управления скоростью мотора. канал M1 на шилде
 #define udir_pin 7 //пин для управления направлением вращения. канал M1 на шилде
-#define uservo_pin 3 //пин куда подключен сервомотор
+#define uservo_pin 9 //пин куда подключен сервомотор
 
 #ifndef orange_car
 #define head_light_pin A0 //передние фары
@@ -28,7 +38,8 @@
 #define angle_center 90
 #define speed_min 450
 
-int Speed = 0,old_Speed=0; // Скорость
+int Speed = 0,old_Speed=0; // Скорость в условных единицах
+float real_speed = 0; //реальная скорость в сантиметрах в секунду
 int DIR = 0;
 int Corner = 90,old_Corner = 0; // угол поворота в градусах
 Servo myservo;
@@ -38,9 +49,10 @@ unsigned long time;
 unsigned long right_time_indicator;
 unsigned long left_time_indicator;
 unsigned long time_current;
+unsigned long last_speed_update =0;
 boolean turn_right_light;
 boolean turn_left_light;
-
+volatile unsigned int encoder0Pos = 0;
 
 enum directions
 {
@@ -102,11 +114,12 @@ Motor motor1(upwm_pin,udir_pin);
 
 void setup(void)
 {
+  pinMode(addition_vdd,OUTPUT);
+  digitalWrite(addition_vdd, HIGH);
+  
   Serial.begin(115200);
   Serial.setTimeout(20);
-  myservo.attach(uservo_pin);
-  pinMode(4,OUTPUT);
-  digitalWrite(4,HIGH);  
+  myservo.attach(uservo_pin);  
   motor1.set_direction(FORWARD);
   pinMode(gnd_analog_pin,OUTPUT);
   pinMode(rear_light_pin,OUTPUT);
@@ -126,27 +139,14 @@ void setup(void)
   time_current = 0;
   turn_right_light = false;
   turn_left_light = false;
-  //OCR0A = 0xAF;
-  //TIMSK0 |= _BV(OCIE0A);
   
+  pinMode(encoder0PinA, INPUT); 
+  digitalWrite(encoder0PinA, HIGH); //включить нагрузочный резистор
+  attachInterrupt(0, doEncoder, CHANGE); // encoder pin on interrupt 0 - pin 2 
 }
 
 void turnsignal_illumination();
-/*
-boolean state = false;
-
-SIGNAL(TIMER0_COMPA_vect) 
-{
- if(state)
- {
-   state = false;
- }
- else
- {
-   state = true;
- }
-}
-*/
+void serial_get_data();
 
 void loop(void)
 {
@@ -163,28 +163,58 @@ void loop(void)
     if(abs(Corner-90)>angle_range-5)
     {
       Speed = old_Speed;
-      motor1.set_speed_digit(Speed);
+      motor1.set_speed(Speed/4);
     }
     else
     {
-      digitalWrite(stop_indicator_pin, HIGH);
       digitalWrite(upwm_pin, LOW);
     }
   }
   else
   {
-    digitalWrite(stop_indicator_pin, LOW);
-    motor1.set_speed_digit(Speed);
+    motor1.set_speed(Speed/4);
   }
   
   turnsignal_illumination(); //управляет мерцанием поворотников
 
- old_Speed = Speed; 
- old_Corner = Corner;
- if (Serial.available() > 0)
+  old_Speed = Speed; 
+  old_Corner = Corner;
+  serial_get_data(); //получить данные по последовательному порту
+  if(time_current-last_speed_update>1000)
+  {
+    serial_send_data();
+  }
+}
+
+
+
+
+
+
+
+
+
+
+void serial_send_data()
+{
+  //отправить последовательность байт по COM порту
+  //отправить реальную скорость
+  //unsigned int - 2 байта
+  real_speed = encoder0Pos*1.3;
+  encoder0Pos=0;
+  last_speed_update = millis();
+   Serial.print('F');
+   Serial.print(real_speed);
+   Serial.print('E');
+}
+
+
+void serial_get_data()
+{
+   if (Serial.available() > 0)
    {
        char c = Serial.read();
-       time = time_current;
+       
        switch(cur_state)
        {
         case 1:
@@ -199,6 +229,7 @@ void loop(void)
                DIR = Serial.parseInt();
                Speed = Serial.parseInt();
                cur_state = 0;
+               time = time_current;
             }
             else cur_state = 0;
             break;
@@ -207,12 +238,22 @@ void loop(void)
             else cur_state = 0;
             break;
        }
-
    }
 }
 
+
+
 void turnsignal_illumination()
 {
+  if(Speed == 0)
+  {
+   digitalWrite(stop_indicator_pin, HIGH); 
+  }
+  else
+  {
+    digitalWrite(stop_indicator_pin, LOW);
+  }
+  
   if(Corner>90+deviation)
   {
     if(!turn_right_light)
@@ -278,5 +319,11 @@ void turnsignal_illumination()
     left_time_indicator = 0;
     digitalWrite(left_indicator_pin, LOW);
   }
+}
+
+
+void doEncoder()
+{
+  encoder0Pos++;
 }
 

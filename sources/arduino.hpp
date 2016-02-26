@@ -7,8 +7,6 @@
 #include <pthread.h>
 #include "config.hpp"
 
-void* arduino_control_thr(void* ard_data_ptr);
-
 class Arduino_ctrl
 {
 protected:	
@@ -17,6 +15,7 @@ char message[128];
 bool connect;
 public:
 Arduino_ctrl(System &syst);
+int feedback();
 void send_command(Engine* engine);
 void deinit();
 bool isconnected();

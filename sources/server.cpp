@@ -25,8 +25,10 @@ bool get_data(void *dst, int socket, size_t size)
 {
 	size_t i=0;
 	int bytes =0;
-	for (i = 0; i < size; i += bytes) {
-		if ((bytes = recv(socket, (char *)dst+i, size-i, 0)) == -1) {
+	for (i = 0; i < size; i += bytes)
+	{
+		if ((bytes = recv(socket, (char *)dst+i, size-i, 0)) == -1)
+		{
 			return false;
 		}
 	}

@@ -1,6 +1,11 @@
 #include "main.hpp"
 
 /*
+ * Сорость в реальных единицах полученная с arduino
+ */
+uint16_t real_speed =0;
+
+/*
  * struct Queue. Очередь, куда помещаются изображения полученные с видеокамеры.
  */
 pthread_mutex_t queue_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -134,6 +139,7 @@ void* server_fnc(void *ptr)
 			tl.speed = eng.speed;
 			tl.direction = eng.direction;
 			tl.angle = eng.angle;
+			tl.real_speed = real_speed;
 			memcpy(&tl.mysign,&eng.mysign,sizeof(sign_data));
 			memcpy(&tl.myline,&eng.myline,sizeof(line_data));
 			
@@ -172,6 +178,8 @@ void* arduino_fnc(void *ptr)
 			pthread_mutex_unlock(&(queue_engine_lock));
 			
 			controller.send_command(&eng);
+			int spd=controller.feedback();
+			if(spd!=-1) real_speed = spd;
 		}
 		else usleep(1000);
 	}

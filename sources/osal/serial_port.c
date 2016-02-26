@@ -271,7 +271,7 @@ OsalSerialPort* osal_serial_port_open(const char *name, int baudrate, OsalSerial
 		LOGE("Can't open serial port \"%s\"\n", name);
 		goto fail;
 	}
-	fcntl(port->fd, F_SETFL, 0);
+	fcntl(port->fd, F_SETFL, FNDELAY); //0
 
 	// flush serial port and activate settings
 	if (tcsetattr(port->fd, TCSANOW, &port->settings) < 0 ) {
