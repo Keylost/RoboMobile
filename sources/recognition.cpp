@@ -251,8 +251,8 @@ void Recognition::recognize_sign(const Mat& orig)
 	Mat result,frame = orig(signarea);
 	frame.copyTo(result);
 	cvtColor(result,result,CV_BGR2GRAY);
-	vector<std::vector<cv::Point> > contours;
-	vector<cv::Vec4i> hierarchy;
+	vector<vector<Point> > contours;
+	vector<Vec4i> hierarchy;
 	simple_hist colors;
 	
 	#ifdef canny

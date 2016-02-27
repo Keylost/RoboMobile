@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8)
 
-set(PROJECT robotractor)
+set(PROJECT RoboMobile)
 project(${PROJECT})
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
