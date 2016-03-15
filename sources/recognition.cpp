@@ -524,6 +524,8 @@ void Recognition::handle_line()
 		/* Вычислить отклонение робота от центра линии*/
 		delta = myline.center_of_line-myline.robot_center;
 		
+		if(abs(delta-old_delta)>80) delta = old_delta*0.7 + delta*0.3;
+		
 		/* Вычислить угол поворота робота согласно его отклонению и заданным коэффициентам ПИД регулятора */
 		//engine->angle = 90 - PID(delta,(double)engine.angle); //PID regulator
 		engine.angle = ANGLE_CENTER - delta*1/6.7 - (delta- old_delta)*0.2; //простой PD регулятор; 6.7 - пропорциональная компонента, 0.2 - дифференциальная 
