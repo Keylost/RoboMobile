@@ -277,6 +277,7 @@ void Recognition::recognize_sign(const Mat& orig)
 		Mat rr =  frame(boundingarea);
 		color_counter(rr,colors);
 		
+		/*
 		if (approx.size() == 3)
 		{
 			if(colors.red<1000 || colors.white<500 || colors.blue>100 || colors.yellow>100 ||colors.red>2500)	continue;
@@ -286,8 +287,9 @@ void Recognition::recognize_sign(const Mat& orig)
 			mysign.sign = sign_giveway;
 			return;
 		}
+		*/
 		
-		else if (approx.size() == 4) // SING?
+		if (approx.size() == 4) // SING?
 		{
 			double dy,dx,l1,l2,l3,l4; 
 			dx =approx[1].x-approx[0].x; dy = approx[1].y-approx[0].y;
@@ -337,7 +339,7 @@ void Recognition::recognize_sign(const Mat& orig)
 				l4 = sqrt((dx*dx) + (dy*dy));
 				if (abs(l4 - l2) < 0.1*l4 && abs(l3 - l1) < 0.1*l3)
 				{
-					printf("blue %d, black %d yellow %d\n",colors.blue,colors.black,colors.yellow);
+					//printf("blue %d, black %d yellow %d\n",colors.blue,colors.black,colors.yellow);
 					if (colors.blue>area*0.5 && colors.blue<area*0.92 && colors.black>area*0.05 && colors.black<area*0.37 && colors.yellow<area*0.4)
 					{
 						mysign.sign = sign_crosswalk;
@@ -345,6 +347,7 @@ void Recognition::recognize_sign(const Mat& orig)
 						LOG("[I]: Crosswalk found");
 						return;
 					}
+					/*
 					else if(colors.yellow>900 && colors.blue<area*0.1)
 					{
 						mysign.sign = sign_mainroad;
@@ -352,6 +355,7 @@ void Recognition::recognize_sign(const Mat& orig)
 						LOG("[I]: Mainroad sign found");
 						return;
 					}
+					* */
 				}
 			}
 		}
@@ -377,110 +381,119 @@ void Recognition::recognize_sign(const Mat& orig)
  * 
  * Функция определяет наличие линии на изображении и заполняет поле myline объекта класса Recognition.
  */
+int scan_row = 350;
+int center_prev=-1;
+int center =-1;
+int border_left=0;
+int border_right =0;
+int border_left_prev=0;
+int border_right_prev =0;
 void Recognition::recognize_line(const Mat& orig)
 {
-	int min=0,max=0,minp=0,maxp=0;
+	center_prev = center;
+	border_left_prev = border_left;
+	border_right_prev = border_right;
 	
-	Mat gray,bin,roi;
-	int xmin =100,xmax=540;
-	int left=0,right=0;
+	int b=0,g=0,r=0,y=0;
 	uint8_t *row;
-	uint32_t xb=0; 
-	uint32_t black=0;
-	int rb_cen =0,rb_count=0;
+	row = (uint8_t*)orig.ptr<uint8_t>(scan_row);
 	
-	roi = orig(linearea);
-	cvtColor(roi,gray,CV_BGR2GRAY);
-	GaussianBlur(gray, gray, Size(7,7), 2, 0, BORDER_DEFAULT);	
-	
-	for(int i=gray.rows-1;i>=0;i-=5)
+	if(center_prev!=-1)
 	{
-		xb=0,black=0;
-		row = (uint8_t*)gray.ptr<uint8_t>(i);
-		for(int j=xmin;j<=xmax;j++)
+		int j = center_prev;
+		b = row[j*3+0], g = row[j*3+1], r = row[j*3+2];
+		y = b*0.0722 + g*0.7152 + r*0.2126;
+		if(y<60)
 		{
-			if(row[j]<60)
+			int i=j+1;
+			for(; i<orig.cols;i++)
 			{
-				xb+=j;
-				black++;
+				b = row[i*3+0], g = row[i*3+1], r = row[i*3+2];
+				y = b*0.0722 + g*0.7152 + r*0.2126;
+				if(y>60) break;
+			}
+			border_right = i;
+			i=j-1;
+			for(; i>=0;i--)
+			{
+				b = row[i*3+0], g = row[i*3+1], r = row[i*3+2];
+				y = b*0.0722 + g*0.7152 + r*0.2126;
+				if(y>60) break;
+			}
+			border_left = i;
+			center = (border_right+border_left)/2;
+		}
+		else
+		{
+			center_prev=-1;
+			//center = (border_right+border_left)/2;
+		}
+	}
+	if(center_prev==-1)
+	{
+		int mindiff=1000;
+		for(int i=0;i<orig.cols;i++)
+		{
+			b = row[i*3+0], g = row[i*3+1], r = row[i*3+2];
+			y = b*0.0722 + g*0.7152 + r*0.2126;
+			if(y<60)
+			{
+				int startpoint = i;
+				i++;
+				while(y<60 && i<orig.cols)
+				{
+					b = row[i*3+0], g = row[i*3+1], r = row[i*3+2];
+					y = b*0.0722 + g*0.7152 + r*0.2126;
+					i++;
+				}
+				int center_tmp=(i+startpoint)/2;
+				int difftmp = abs(myline.robot_center-center_tmp);
+				if(difftmp<mindiff)
+				{
+					mindiff = difftmp;
+					center = center_tmp;
+					border_left = startpoint;
+					border_right = i;
+				}
 			}
 		}
-		if(black>15)
-		{
-			int center = xb/black;
-			if(row[center]<60)
-			{
-				right=center,left=center;
-				int k=center;
-				for(;k<gray.cols;k++) // right side
-				{
-					if(row[k]>=60)
-					{
-						right=k;
-						k=gray.cols+1;
-					}
-				}
-				if(k==gray.cols)
-				{
-					right=k-1;
-				}
-				
-				k=center;
-				for(;k>0;k--) // left side
-				{
-					if(row[k]>=60)
-					{
-						left=k;
-						k=-1;
-					}
-				}
-				if(k==0)
-				{
-					left=k;
-				}
-				
-				if(right - left<200)
-				{
-					rb_cen += (center); rb_count++;
-					min = min+left;max++;
-				}
-				else
-				{
-					minp+=left; maxp++;
-				}
-			}
-			
-		}
-		/*
-		else if(i==gray.rows-1)
-		{
-			rb_count = 0;
-			break;
-		}
-		*/
-		
-		xmin+=2;
-		xmax-=2;
 	}
 	
-	
-	if(rb_count>0)
+	if(center_prev!=-1)
 	{
-		if(maxp>0)//stop or cross
+	if(abs(border_right-border_right_prev)>40)
+	{
+		if(abs(border_left-border_left_prev)<40)
 		{
-			if(min/max-minp/maxp<20)
-			{
-				myline.stop_line =true;
-				printf("stopline %d %d\n",minp/maxp,min/max);
-			}
+			myline.stop_line = true;
+			border_right = border_right_prev + (border_left-border_left_prev);
+			center = (border_left+border_right)/2;
+			printf("stop line \n");
 		}
-		int mcenter = rb_cen/rb_count;
-		myline.on_line=true;
-		myline.center_of_line =mcenter;
+		else
+		{
+			printf("crossroad \n");
+			border_left = border_left_prev;
+			border_right = border_right_prev;
+			center = center_prev;
+		}
+	}
+	else if(abs(border_left-border_left_prev)>40)
+	{
+		border_left = border_left_prev + (border_right-border_right_prev);
+		center = (border_left+border_right)/2;
+		printf("crossroad \n");
+	}
+	}
+	
+	if(center!=-1)
+	{
+		myline.center_of_line = center;
+		myline.on_line = true;
 	}
 	else
 	{
-		myline.on_line=false;
+		myline.on_line = false;
 	}
 }
 
