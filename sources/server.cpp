@@ -214,6 +214,7 @@ void* server_fnc(void *ptr)
 			srv.send(Line_t,sizeof(line_data),(void *)curLineData);
 			
 			curObj->free();
+			curLineData->free();
 	}
 	
 	return NULL;
