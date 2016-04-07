@@ -20,3 +20,5 @@ void send_command(Engine* engine);
 void deinit();
 bool isconnected();
 };
+
+void* arduino_fnc(void *ptr);

@@ -89,3 +89,29 @@ Arduino_ctrl::Arduino_ctrl(System &syst)
 		connect = true;
 	}
 }
+
+/*
+ * Функция arduino_fnc() реализует поток взаимодействия с микроконтроллером.
+ * @ptr - указатель на структуру System.
+ * Устанавливает соединение с микроконтроллером и начинает процесс передачи параметров движения.
+ */
+void* arduino_fnc(void *ptr)
+{
+	System &syst = *((System *)ptr);
+	Engine eng; //локальная копия Engine
+	Arduino_ctrl controller(syst);
+	if(!controller.isconnected())
+	{
+		LOG("[W]: Arduino isn't attached. The robot willn't move.");
+		return NULL;
+	}
+	
+	while(1)
+	{
+		controller.send_command(&eng);
+		int spd=controller.feedback();
+		if(spd!=-1) eng.real_speed = spd;
+	}
+	controller.deinit();
+	return NULL;
+}

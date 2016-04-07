@@ -198,3 +198,34 @@ void System::init()
 	
 	fclose(fp);
 }
+
+void System::engine_get(Engine &destination)
+{
+	pthread_mutex_lock(&(engine_mutex));
+	memcpy(&destination,&engine,sizeof(Engine));
+	pthread_mutex_unlock(&(engine_mutex));
+}
+
+void System::engine_set(Engine &source)
+{
+	pthread_mutex_lock(&(engine_mutex));
+	memcpy(&engine,&source,sizeof(Engine));
+	pthread_mutex_unlock(&(engine_mutex));
+}
+
+void System::signs_get(vector<sign_data> &destination)
+{
+	destination.clear();
+	pthread_mutex_lock(&(signs_mutex));	
+	destination = Signs;
+	pthread_mutex_unlock(&(signs_mutex));
+}
+
+void System::signs_set(vector<sign_data> &source)
+{
+	pthread_mutex_lock(&(signs_mutex));
+	Signs.clear();
+	//Signs.swap(source);
+	Signs = source;
+	pthread_mutex_unlock(&(signs_mutex));
+}

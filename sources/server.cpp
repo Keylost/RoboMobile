@@ -47,7 +47,7 @@ void *receiv(void *ptr)
 	{
 		if(pt->isconnected)
 		{
-			if(get_data(&(pt->engine->power),pt->newsockfd,1))
+			//if(get_data(&(pt->engine->power),pt->newsockfd,1))
 			{
 				LOG("[I]: Receiver got data");
 			}
@@ -67,9 +67,6 @@ Server::Server(System &syst)
 {
 	sys = &syst;
 	isconnected=false;
-	parameters = std::vector<int>(2);
-	parameters[0] = CV_IMWRITE_JPEG_QUALITY; //jpeg
-	parameters[1] = syst.image_quality; //0-100 quality
 	portno = 1111; //server port number
 	start();
 }
@@ -121,24 +118,22 @@ void Server::start()
 /*
  * Функция send() отправляет телеметрию на клиентское приложение
  * @img - ссылка на пересылаемое изображение
- * @tl - указатель на структуру Telemetry, содержащую информацию для отправки на клиентское приложение 
+ * @tl - указатель на структуру Engine 
  */
-void Server::send(Mat &img,Telemetry* tl)
+void Server::send(dataType type, uint32_t dataSize, void *ptr)
 {
-	imencode(".jpg", img, buffer, parameters);
-	uint32_t imgsize = buffer.size();
-	bool status = true;	
-
-	if(!send_data((void *)tl,newsockfd,sizeof(Telemetry)))
+	bool status = true;
+	uint32_t tp = type;
+	if(!send_data((void *)&tp,newsockfd,sizeof(uint32_t)))
 	{
 		status = false;
 	}
 
-	if(!send_data((void *)&imgsize,newsockfd,4))
+	if(!send_data((void *)&dataSize,newsockfd,sizeof(uint32_t)))
 	{
 		status = false;
 	}
-	if(!send_data((void *)(&buffer[0]),newsockfd,imgsize))
+	if(!send_data(ptr,newsockfd,(size_t)dataSize))
 	{
 		status = false;
 	}
@@ -176,4 +171,50 @@ void Server::receiver(Engine *eng)
 	pthread_t receiver_thr;
 	pthread_create(&receiver_thr, NULL, receiv, this);
 	pthread_detach(receiver_thr);	
+}
+
+
+/*
+ * Функция server_fnc() реализует поток взаимодействия с клиентским приложением.
+ * @ptr - указатель на структуру System.
+ * Устанавливает соединение с клиентским приложением и начинает процесс передачи телеметрии и приема управляющих команд.
+ */
+void* server_fnc(void *ptr)
+{
+	Engine eng; //локальная копия структуры Engine
+	System &syst = *((System *)ptr);
+	vector<int> parameters; //вектор параметров сжатия изображения(jpeg 20%)
+	vector<uchar> buffer; //вектор содержащий сжатое изображение
+	parameters = vector<int>(2);
+	parameters[0] = CV_IMWRITE_JPEG_QUALITY; //jpeg
+	parameters[1] = syst.image_quality; //0-100 quality
+	
+	Object<Mat> *curObj = NULL;
+	Queue<Mat> &queue = syst.queue;
+	
+	Object<line_data> *curLineData = NULL;
+	Queue<line_data> &qline = syst.qline;
+	
+	Server srv(syst);
+	
+	/* Запускает поток приема управляющих команд */
+	//srv.receiver(&queue_engine.manual);
+	
+	/*Основной цикл потока*/
+	while(1)
+	{
+			curObj = queue.waitForNewObject(curObj);
+			curLineData = qline.waitForNewObject(curLineData);
+			Mat &frame = *(curObj->obj);
+			imencode(".jpg", frame, buffer, parameters);
+			
+			//syst.engine_get(eng);
+			
+			srv.send(Image_t,(uint32_t)buffer.size(),(void *)(&buffer[0]));
+			srv.send(Line_t,sizeof(line_data),(void *)curLineData);
+			
+			curObj->free();
+	}
+	
+	return NULL;
 }

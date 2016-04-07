@@ -21,11 +21,18 @@
 #include <opencv2/opencv.hpp>
 #include "Engine.hpp"
 #include "logger.hpp"
-#include "telemetry.hpp"
 #include "config.hpp"
 
 using namespace cv;
 using namespace std;
+
+enum dataType
+{
+	Image_t = 0,
+	Engine_t = 1,
+	Sing_t = 2,
+	Line_t = 3
+};
 
 class Server
 {
@@ -34,9 +41,6 @@ private:
 	bool is_send;
 	int sockfd;
 	int portno;
-	std::vector<int> parameters; //parameters vector for image compressor(jpeg 20%)
-	std::vector<uchar> buffer; //compressed image vector
-	Telemetry telemetry; //telemetry data	
 	void start();
 public:
 	int newsockfd;
@@ -45,6 +49,9 @@ public:
 	
 	Server(System &syst);
 	void stop();
-	void send(Mat &img,Telemetry *tl);
+	void send(dataType type, uint32_t dataSize, void *ptr);
 	void receiver(Engine *eng);
 };
+
+
+void* server_fnc(void *ptr);

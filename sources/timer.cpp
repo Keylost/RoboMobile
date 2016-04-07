@@ -5,7 +5,7 @@
  */
 void robotimer::start()
 {
-	clock_gettime(CLOCK_REALTIME, &tstart);		
+	clock_gettime(CLOCK_REALTIME, &tstart);
 }
 
 /*

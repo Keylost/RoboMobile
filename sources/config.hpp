@@ -3,6 +3,10 @@
 #include <stdint.h>
 #include <string.h>
 #include <opencv2/opencv.hpp>
+#include <pthread.h>
+#include "queue.hpp"
+#include "Engine.hpp"
+#include "signs.hpp"
 
 using namespace cv;
 
@@ -20,8 +24,22 @@ enum modes
 
 class System
 {
+	private:
+	pthread_mutex_t engine_mutex = PTHREAD_MUTEX_INITIALIZER; //мутекс для контроля доступа к Engine
+	Engine engine; //содержит основные динамические параметры движения робота
+	pthread_mutex_t signs_mutex = PTHREAD_MUTEX_INITIALIZER; //мутекс для контроля доступа к Engine
+	vector<sign_data> Signs;
 	public:
 	void init();
+	
+	
+	void engine_get(Engine &destination);
+	void engine_set(Engine &source);
+	void signs_get(vector<sign_data> &destination);
+	void signs_set(vector<sign_data> &source);
+	
+	Queue<Mat> queue; //очередь для кадров с видеокамеры
+	Queue<line_data> qline; //очередь для дзанных линии
 	
 	char arduino_port[30];
 	modes MODE;

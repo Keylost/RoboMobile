@@ -25,6 +25,7 @@ struct sign_data
 	Rect area;
 	signs sign;
 	int state;
+	timespec detect_time;
 };
 
 struct line_data

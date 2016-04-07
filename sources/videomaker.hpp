@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <opencv2/opencv.hpp>
 #include "config.hpp"
+#include "logger.hpp"
 
 using namespace cv;
 using namespace std;
@@ -18,3 +19,5 @@ public:
 	void write(Mat& frame);
 	void deinit();
 };
+
+void* videomaker_fnc(void *ptr);

@@ -1,242 +1,7 @@
 #include "recognition.hpp"
 
-#define ANGLE_CENTER  90 //угол сервомотора, при котором колеса робота смотрят прямо
-#define ANGLE_RANGE  35 //максимальное отклонение сервомотора от центрального положения
-#define MAX_SPEED  990 //максимальная скорость движения в условных единицах (от 0 до 999)
-#define MIN_SPEED  450 //минимальная скорость движения в условных единицах (от 0 до 999)
-#define ANGLE_MIN  (ANGLE_CENTER - ANGLE_RANGE)
-#define ANGLE_MAX  (ANGLE_CENTER + ANGLE_RANGE)
-uint32_t speed_crosswalk = MIN_SPEED; //скорость при обнаружении пешеходного перехода
-uint32_t speed_stop      = 0; //скорость при обнаружении знака стоп
-uint32_t speed_trafficlight  = 0; //скорость при обнаружении желтого или красного сигнала светофора
-
-//#define canny //раскоментируйте эту строчку, чтобы использовать детектор Канни для поиска объектов на изображении вместо адаптивной бинаризации
-
-/*
- * Конструктор класса Recognition
- * Инициализирует поля начальными значениями
- */
-Recognition::Recognition(System &syst)
-{
-	//mysign = engine.mysign;
-	//myline = engine.myline;
-	
-	timer = 0;
-	mysign.sign = sign_none;
-	
-	myline.robot_center = syst.robot_center; //точка на кадре на которую будет выравниваться робот
-	signarea = syst.signarea;
-	linearea = syst.linearea;
-}
-
-/*
- * Функция get_light2() определяет активный сигнал светофора
- * Входные данные:
- * Mat& roi - указатель на изображение светофора
- * Возвращаемые значения:
- * 0 - зеленый
- * 1 - красный
- * 2 - желтый
- */
-uint8_t get_light2(Mat& roi)
-{
-	int rg=0,rb=0,gb=0;
-	int b=0,g=0,r=0;
-	
-	uint8_t *row;
-	for(int rows=0;rows<roi.rows;rows++)
-	{
-		row = (uint8_t*)roi.ptr<uint8_t>(rows);
-		for(int col=0;col<roi.cols;col++)
-		{
-			b = row[col*3]; g=row[col*3+1]; r=row[col*3+2];
-			if(r-g>rg) rg=r-g;
-			if(r-b>rb) rb=r-b;
-			if(g-b>gb) gb=g-b;
-		}
-	}
-	
-	if(rb>150 && rg>150 && gb<120 ) return 1;
-	if(gb>100 && rb>100) return 2;
-	else return 0;
-}
-
-/*
- * Функция handle_sign() занимается обработкой информации о найденных знаках
- * Входные данные:
- * Mat& orig - указатель на текущее обрабатываемое цветное(BGR) изображение, полученное с камеры.
- * 
- * В зависимости от информации о знаке, содержащийся в поле mysign объекта класса Recognition, управляет поведением робота.
- * Например, устанавливает таймер, определяющий время, на которое робот должен сбросить скорость при найденнном знаке "пешеходный переход"
- * или время, в течении которого робот будет стоять у знака "стоп".
- */
-bool red_catch = false;
-bool sign_catch = false;
-Mat templ;
-void Recognition::handle_sign(const Mat& orig)
-{
-	switch(mysign.sign)
-	{
-	case sign_none:
-	{
-		break;
-	}
-	case sign_stop:
-	{
-		if(timer==0) 
-		{
-			time(&timer);
-		}
-		else
-		{
-			time_t diff = time(NULL)-timer;
-			if(diff<=0) 
-			{
-				break;
-			}
-			else if(diff<=3)
-			{
-				engine.speed = speed_stop;
-			}
-			else if(diff<=5)
-			{
-				break;
-			}
-			else 
-			{
-				timer=0;
-				mysign.sign = sign_none;
-			}
-		}
-		break;
-	}
-	case sign_giveway:
-	{
-		if(!sign_catch)
-		{			
-			Mat vr = orig(Rect(Point(orig.cols/2 + mysign.area.x,mysign.area.y),Point(orig.cols/2 + mysign.area.x+mysign.area.width,mysign.area.y+mysign.area.height)));
-			sign_catch = true;
-			cvtColor(vr,templ,CV_BGR2GRAY);
-			break;
-		}
-		Mat roi = orig(Rect(Point(orig.cols/2,0), Point(orig.cols-1,orig.rows/2)));
-		cvtColor(roi,roi,CV_BGR2GRAY);
-		double maxval = 0;
-		Point matchLoc = TplMatch(roi, templ,maxval);
-		if(maxval<0.6)
-		{
-			sign_catch = false;
-			mysign.sign = sign_none;
-			break;
-		}
-		mysign.area = Rect(matchLoc, Point(matchLoc.x + templ.cols , matchLoc.y + templ.rows ));
-		Mat vr = orig(Rect(Point(orig.cols/2 + mysign.area.x,mysign.area.y),Point(orig.cols/2 + mysign.area.x+mysign.area.width,mysign.area.y+mysign.area.height)));
-		cvtColor(vr,templ,CV_BGR2GRAY);
-		break;
-	}
-	case sign_mainroad:
-	{
-		if(!sign_catch)
-		{			
-			Mat vr = orig(Rect(Point(orig.cols/2 + mysign.area.x,mysign.area.y),Point(orig.cols/2 + mysign.area.x+mysign.area.width,mysign.area.y+mysign.area.height)));
-			sign_catch = true;
-			cvtColor(vr,templ,CV_BGR2GRAY);
-			break;
-		}
-		Mat roi = orig(Rect(Point(orig.cols/2,0), Point(orig.cols-1,orig.rows/2)));
-		cvtColor(roi,roi,CV_BGR2GRAY);
-		double maxval = 0;
-		Point matchLoc = TplMatch(roi, templ,maxval);
-		if(maxval<0.6)
-		{
-			sign_catch = false;
-			mysign.sign = sign_none;
-			break;
-		}
-		mysign.area = Rect(matchLoc, Point(matchLoc.x + templ.cols , matchLoc.y + templ.rows ));
-		Mat vr = orig(Rect(Point(orig.cols/2 + mysign.area.x,mysign.area.y),Point(orig.cols/2 + mysign.area.x+mysign.area.width,mysign.area.y+mysign.area.height)));
-		cvtColor(vr,templ,CV_BGR2GRAY);
-		break;
-	}
-	case sign_crosswalk:
-	{		
-		if(timer==0) 
-		{
-			time(&timer);
-		}
-		else
-		{
-			time_t diff = time(NULL)-timer;
-			if(diff<=1) 
-			{		
-				break;
-			}
-			else if(diff<=4)
-			{
-				engine.speed = speed_crosswalk;
-			}
-			else 
-			{
-				timer=0;
-				mysign.sign = sign_none;
-			}
-		
-		}
-		break;
-	}
-	case sign_trafficlight:
-	{
-		int k =0;
-		Mat roi   = orig(Rect(Point(orig.cols/2 + mysign.area.x-k,mysign.area.y-k),Point(orig.cols/2 + mysign.area.x+mysign.area.width+k,mysign.area.y+mysign.area.height+k)));
-		uint32_t light = get_light2(roi);
-		
-		switch(light)
-		{
-		case 0:
-		{
-			LOG("[I]: Green light found");
-			mysign.state = greenlight;
-			mysign.sign = sign_none;
-			break;
-		}		
-		case 1:
-		{
-			LOG("[I]: Red light found");
-			mysign.state = redlight;
-			engine.speed = speed_trafficlight;
-			break;
-		}
-		case 2:
-		{
-			LOG("[I]: Yellow light found");
-			mysign.state = yellowlight;
-			engine.speed = speed_trafficlight;
-			break;
-		}
-		case 3:
-		{
-			LOG("[I]: Tracking error?");
-			mysign.state = greenlight;
-			mysign.sign = sign_none;
-			break;
-		}
-		}
-		if(myline.stop_line && mysign.state!=greenlight)
-		{
-			if(timer_line.get()>700) mysign.sign = sign_none;
-			else if(timer_line.get()>0)
-			{
-				timer_line.start();
-			}
-		}
-		
-		
-		break;
-	}
-	}
-}
-
-
+vector<sign_data> Signs;
+sign_data mysign;
 /*
  * Функция recognize_sign() занимается распознаванием знаков на изображении
  * Входные данные:
@@ -246,23 +11,19 @@ void Recognition::handle_sign(const Mat& orig)
  * Если на изображении несколько знаков, то обработан будет только первый попавшийся.
  */
 
-void Recognition::recognize_sign(const Mat& orig)
-{ 
-	Mat result,frame = orig(signarea);
+void recognize_sign(const Mat& frame)
+{
+	Mat result;
 	frame.copyTo(result);
 	cvtColor(result,result,CV_BGR2GRAY);
 	vector<vector<Point> > contours;
 	vector<Vec4i> hierarchy;
 	simple_hist colors;
 	
-	#ifdef canny
 	equalizeHist(result, result);
-	Canny(result, result, 100, 200, 3);
-	#else
-	adaptiveThreshold(result,result,255,ADAPTIVE_THRESH_GAUSSIAN_C,THRESH_BINARY,11,2);
-	#endif
+	Canny(result, result, 0, 255, 3);
 	
-	findContours(result, contours, hierarchy, CV_RETR_LIST, CV_CHAIN_APPROX_NONE, cv::Point(0, 0) );
+	findContours(result, contours, hierarchy, CV_RETR_LIST, CV_CHAIN_APPROX_NONE, Point(0, 0) );
 	mysign.sign = sign_none;
 	vector<Point> approx;
 	
@@ -277,7 +38,6 @@ void Recognition::recognize_sign(const Mat& orig)
 		Mat rr =  frame(boundingarea);
 		color_counter(rr,colors);
 		
-		/*
 		if (approx.size() == 3)
 		{
 			if(colors.red<1000 || colors.white<500 || colors.blue>100 || colors.yellow>100 ||colors.red>2500)	continue;
@@ -285,11 +45,9 @@ void Recognition::recognize_sign(const Mat& orig)
 			LOG("[I]: Giveway sign found");
 			mysign.area = boundingarea;
 			mysign.sign = sign_giveway;
-			return;
 		}
-		*/
 		
-		if (approx.size() == 4) // SING?
+		else if (approx.size() == 4) // SING?
 		{
 			double dy,dx,l1,l2,l3,l4; 
 			dx =approx[1].x-approx[0].x; dy = approx[1].y-approx[0].y;
@@ -310,7 +68,6 @@ void Recognition::recognize_sign(const Mat& orig)
 						LOG("[I]: Traffic light found");
 						mysign.area = boundingarea;
 						mysign.sign = sign_trafficlight;
-						return;
 					}
 				}
 			}
@@ -327,7 +84,6 @@ void Recognition::recognize_sign(const Mat& orig)
 						LOG("[I]: Start raffic light found");
 						mysign.area = boundingarea;
 						mysign.sign = sign_trafficlight;
-						return;
 					}
 				}
 			}
@@ -339,23 +95,19 @@ void Recognition::recognize_sign(const Mat& orig)
 				l4 = sqrt((dx*dx) + (dy*dy));
 				if (abs(l4 - l2) < 0.1*l4 && abs(l3 - l1) < 0.1*l3)
 				{
-					//printf("blue %d, black %d yellow %d\n",colors.blue,colors.black,colors.yellow);
+					printf("blue %d, black %d yellow %d\n",colors.blue,colors.black,colors.yellow);
 					if (colors.blue>area*0.5 && colors.blue<area*0.92 && colors.black>area*0.05 && colors.black<area*0.37 && colors.yellow<area*0.4)
 					{
 						mysign.sign = sign_crosswalk;
 						mysign.area = boundingarea;
 						LOG("[I]: Crosswalk found");
-						return;
 					}
-					/*
 					else if(colors.yellow>900 && colors.blue<area*0.1)
 					{
 						mysign.sign = sign_mainroad;
 						mysign.area = boundingarea;
 						LOG("[I]: Mainroad sign found");
-						return;
 					}
-					* */
 				}
 			}
 		}
@@ -367,8 +119,13 @@ void Recognition::recognize_sign(const Mat& orig)
 				mysign.sign = sign_stop;
 				mysign.area = boundingarea;
 				LOG("[I]: Stop found");
-				return;
 			}
+		}
+		
+		if(mysign.sign != sign_none)
+		{
+			Signs.push_back(mysign);
+			mysign.sign = sign_none;
 		}
 	}
 	return;
@@ -381,203 +138,172 @@ void Recognition::recognize_sign(const Mat& orig)
  * 
  * Функция определяет наличие линии на изображении и заполняет поле myline объекта класса Recognition.
  */
-int scan_row = 350;
-int center_prev=-1;
-int center =-1;
-int border_left=0;
-int border_right =0;
-int border_left_prev=0;
-int border_right_prev =0;
-void Recognition::recognize_line(const Mat& orig)
+void recognize_line(const Mat& roi, line_data &myline)
 {
-	center_prev = center;
-	border_left_prev = border_left;
-	border_right_prev = border_right;
+	int min=0,max=0,minp=0,maxp=0;
 	
-	int b=0,g=0,r=0,y=0;
+	Mat gray,bin;
+	int xmin =100,xmax=540;
+	int left=0,right=0;
 	uint8_t *row;
-	row = (uint8_t*)orig.ptr<uint8_t>(scan_row);
+	uint32_t xb=0; 
+	uint32_t black=0;
+	int rb_cen =0,rb_count=0;
 	
-	if(center_prev!=-1)
+	cvtColor(roi,gray,CV_BGR2GRAY);
+	GaussianBlur(gray, gray, Size(7,7), 2, 0, BORDER_DEFAULT);	
+	
+	for(int i=gray.rows-1;i>=0;i-=3)
 	{
-		int j = center_prev;
-		b = row[j*3+0], g = row[j*3+1], r = row[j*3+2];
-		y = b*0.0722 + g*0.7152 + r*0.2126;
-		if(y<60)
+		xb=0,black=0;
+		int min_diff = 1000;
+		int center = -1;
+		row = (uint8_t*)gray.ptr<uint8_t>(i);
+		for(int j=xmin;j<=xmax;j++)
 		{
-			int i=j+1;
-			for(; i<orig.cols;i++)
+			if(row[j]<60)
 			{
-				b = row[i*3+0], g = row[i*3+1], r = row[i*3+2];
-				y = b*0.0722 + g*0.7152 + r*0.2126;
-				if(y>60) break;
-			}
-			border_right = i;
-			i=j-1;
-			for(; i>=0;i--)
-			{
-				b = row[i*3+0], g = row[i*3+1], r = row[i*3+2];
-				y = b*0.0722 + g*0.7152 + r*0.2126;
-				if(y>60) break;
-			}
-			border_left = i;
-			center = (border_right+border_left)/2;
-		}
-		else
-		{
-			center_prev=-1;
-			//center = (border_right+border_left)/2;
-		}
-	}
-	if(center_prev==-1)
-	{
-		int mindiff=1000;
-		for(int i=0;i<orig.cols;i++)
-		{
-			b = row[i*3+0], g = row[i*3+1], r = row[i*3+2];
-			y = b*0.0722 + g*0.7152 + r*0.2126;
-			if(y<60)
-			{
-				int startpoint = i;
-				i++;
-				while(y<60 && i<orig.cols)
+				xb+=j;
+				black++;
+				int start_point = j;
+				j++;
+				while(j<=xmax && row[j]<60) j++;
+				int center_tmp = (j+start_point)/2;
+				if(j-start_point>40 && abs(myline.robot_center-center)<min_diff)
 				{
-					b = row[i*3+0], g = row[i*3+1], r = row[i*3+2];
-					y = b*0.0722 + g*0.7152 + r*0.2126;
-					i++;
-				}
-				int center_tmp=(i+startpoint)/2;
-				int difftmp = abs(myline.robot_center-center_tmp);
-				if(difftmp<mindiff)
-				{
-					mindiff = difftmp;
+					min_diff=abs(myline.robot_center-center);
 					center = center_tmp;
-					border_left = startpoint;
-					border_right = i;
+					left = start_point;
+					right = j-1;
 				}
 			}
 		}
+		if(center!=-1)
+		{
+				if(right - left<200)
+				{
+					rb_cen += center; rb_count++;
+					min = min+left;max++;
+				}
+				else
+				{
+					minp+=left; maxp++;
+				}
+		}
+		
+		xmin+=2;
+		xmax-=2;
 	}
 	
-	if(center_prev!=-1)
-	{
-	if(abs(border_right-border_right_prev)>40)
-	{
-		if(abs(border_left-border_left_prev)<40)
-		{
-			myline.stop_line = true;
-			border_right = border_right_prev + (border_left-border_left_prev);
-			center = (border_left+border_right)/2;
-			printf("stop line \n");
-		}
-		else
-		{
-			printf("crossroad \n");
-			border_left = border_left_prev;
-			border_right = border_right_prev;
-			center = center_prev;
-		}
-	}
-	else if(abs(border_left-border_left_prev)>40)
-	{
-		border_left = border_left_prev + (border_right-border_right_prev);
-		center = (border_left+border_right)/2;
-		printf("crossroad \n");
-	}
-	}
 	
-	if(center!=-1)
+	if(rb_count>0)
 	{
-		myline.center_of_line = center;
-		myline.on_line = true;
+		if(maxp>0)//stop or cross
+		{
+			if(min/max-minp/maxp<20)
+			{
+				myline.stop_line =true;
+				printf("stopline %d %d\n",minp/maxp,min/max);
+			}
+		}
+		int mcenter = rb_cen/rb_count;
+		myline.on_line=true;
+		myline.center_of_line =mcenter;
 	}
 	else
 	{
-		myline.on_line = false;
+		myline.on_line=false;
 	}
 }
 
-/*
- * Функция handle_line() занимается обработкой данных о черной линии и разметке, хранящихся в поле
- * myline объекта класса Recognition
- * 
- * Функция задает параметры движения робота от данных хранящихся в myline.
- */
-double delta=0,old_delta=0;
-void Recognition::handle_line()
+void* recognize_line_fnc(void *ptr)
 {
-	if(myline.on_line)
+	System &syst = *((System *)ptr);
+	Rect &linearea = syst.linearea;
+	
+	Object<Mat> *curObj = NULL;
+	Queue<Mat> &queue = syst.queue;
+	
+	Queue<line_data> &qline = syst.qline;
+	
+	while(1)
 	{
-		if(myline.stop_line)
-		{
-			timer_line.stop();
-			if(timer_line.get()<=0)
-			{
-				timer_line.start();
-				engine.speed=0;
-				return;
-			}
-			else
-			{
-				if(timer_line.get()<=700)
-				{
-					engine.speed=0;
-					return;
-				}
-				//else if(timer_line.get()>700 && timer_line.get()<9000) sl_passed = true;
-				else if(timer_line.get()>=9000)
-				{
-					timer_line.zero();
-					myline.stop_line = false;
-				}
-			}
-		}
-
-		//calculate angle begin
-		/* Вычислить отклонение робота от центра линии*/
-		delta = myline.center_of_line-myline.robot_center;
+		Object<line_data> *newObj = new Object<line_data>();
+		curObj = queue.waitForNewObject(curObj);
+		Mat frame = (*(curObj->obj))(linearea);
+		recognize_line(frame,*(newObj->obj));
+		qline.push(newObj);
 		
-		if(abs(delta-old_delta)>80) delta = old_delta*0.7 + delta*0.3;
-		
-		/* Вычислить угол поворота робота согласно его отклонению и заданным коэффициентам ПИД регулятора */
-		//engine->angle = 90 - PID(delta,(double)engine.angle); //PID regulator
-		engine.angle = ANGLE_CENTER - delta*1/6.7 - (delta- old_delta)*0.2; //простой PD регулятор; 6.7 - пропорциональная компонента, 0.2 - дифференциальная 
-		old_delta = delta;
-		
-		/* Проверить вычисленное значение угла на выход за границы диапазона доступных углов сервопривода*/
-		if(engine.angle<ANGLE_MIN) engine.angle =ANGLE_MIN;
-		else if(engine.angle>ANGLE_MAX) engine.angle =ANGLE_MAX;
-		//calculate angle end
-		
-		//calculate speed begin								
-		else if(mysign.sign==sign_none)
-		{
-			int ee = abs(engine.angle - ANGLE_CENTER);
-			engine.speed = MAX_SPEED - ee*((MAX_SPEED-MIN_SPEED)/ANGLE_RANGE); //
-		}
-		//calculate speed end
-	}
-	else
-	{
-		engine.speed = 0;
-		LOG("[W]: black line not found");
+		curObj->free();
 	}
 }
 
-///------- template matching -----------------------------------------------------------------------------------------------
-
-Point TplMatch(Mat &img, Mat &mytemplate, double &maxVal)
+void* recognize_sign_fnc(void *ptr)
 {
-  int result_cols = img.cols - mytemplate.cols + 1;
-  int result_rows = img.rows - mytemplate.rows + 1;
-  Mat result = Mat(result_rows, result_cols,CV_32FC1);
-  double minVal;
-  Point  minLoc, maxLoc, matchLoc;
-
-  matchTemplate(img, mytemplate, result, CV_TM_CCOEFF_NORMED);
-
-  minMaxLoc(result, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
-  matchLoc = maxLoc;
-  //printf("minval %f maxval %f\n",minVal,maxVal);
-  return matchLoc;
+	System &syst = *((System *)ptr);
+	Rect &signarea = syst.signarea;
+	int lsz = 0,gsz=0;
+	timespec cur_time;
+	vector<sign_data> SignsGlobal;
+	
+	Object<Mat> *curObj = NULL;
+	Queue<Mat> &queue = syst.queue;
+	
+	while(1)
+	{
+		curObj = queue.waitForNewObject(curObj);
+		Mat frame = (*(curObj->obj))(signarea);
+		
+		recognize_sign(frame);
+		
+		clock_gettime(CLOCK_REALTIME, &cur_time);
+		lsz = Signs.size();
+		for(int i=0;i<lsz;i++)
+		{
+			signs cur_sign = Signs[i].sign;
+			Signs[i].detect_time = cur_time;
+			for(int j=i+1;j<lsz;j++)
+			{
+				if(Signs[j].sign==cur_sign)
+				{
+					Signs.erase(Signs.begin()+j);
+					lsz--;
+				}
+			}
+		}
+		
+		
+		syst.signs_get(SignsGlobal);
+		gsz = SignsGlobal.size();
+		for(int i=0;i<gsz;i++)
+		{
+			signs cur_sign = SignsGlobal[i].sign;
+			for(int j=0;j<lsz;j++)
+			{
+				if(cur_sign==Signs[j].sign)
+				{
+					SignsGlobal[i] = Signs[j];
+					Signs.erase(Signs.begin()+j);
+					lsz--;
+				}
+			}
+			//удалить устаревшие данные
+			if(((cur_time.tv_sec-SignsGlobal[i].detect_time.tv_sec)*1000 + (cur_time.tv_nsec-SignsGlobal[i].detect_time.tv_nsec)/1000000)>1000)
+			{
+				SignsGlobal.erase(SignsGlobal.begin()+i);
+			}
+		}
+		
+		for(int i=0;i<lsz;i++)
+		{
+			SignsGlobal.push_back(Signs[i]);
+		}
+		
+		syst.signs_set(SignsGlobal);
+		
+		SignsGlobal.clear();
+		Signs.clear();
+		
+		curObj->free();
+	}
 }
