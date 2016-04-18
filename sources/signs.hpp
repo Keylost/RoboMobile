@@ -24,8 +24,8 @@ struct sign_data
 {
 	Rect area;
 	signs sign;
-	int state;
-	timespec detect_time;
+	uint32_t state;
+	uint32_t detect_time; //время прошедшее с поледне регистрации знака системой
 };
 
 struct line_data

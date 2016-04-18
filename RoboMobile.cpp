@@ -37,7 +37,7 @@ int main(int argc, char **argv)
 	
 	/*Создает поток распознования знаков на изображении*/
 	pthread_t recognize_sign_thr;
-	//pthread_create(&recognize_sign_thr, NULL, recognize_sign_fnc, &syst);
+	pthread_create(&recognize_sign_thr, NULL, recognize_sign_fnc, &syst);
 	
 	/*Создает поток взаимодействия с клиентским приложением*/
 	pthread_t server_thr;
@@ -64,6 +64,7 @@ int main(int argc, char **argv)
 	{
 		curLineData = qline.waitForNewObject(curLineData);
 		syst.signs_get(Signs);
+		
 		//engine.myline.center_of_line = curLineData->obj->center_of_line;
 		/*
 		if(!qsign.empty())

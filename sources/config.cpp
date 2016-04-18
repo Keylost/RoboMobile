@@ -215,7 +215,6 @@ void System::engine_set(Engine &source)
 
 void System::signs_get(vector<sign_data> &destination)
 {
-	destination.clear();
 	pthread_mutex_lock(&(signs_mutex));	
 	destination = Signs;
 	pthread_mutex_unlock(&(signs_mutex));
@@ -224,8 +223,6 @@ void System::signs_get(vector<sign_data> &destination)
 void System::signs_set(vector<sign_data> &source)
 {
 	pthread_mutex_lock(&(signs_mutex));
-	Signs.clear();
-	//Signs.swap(source);
 	Signs = source;
 	pthread_mutex_unlock(&(signs_mutex));
 }

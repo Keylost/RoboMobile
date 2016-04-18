@@ -189,6 +189,8 @@ void* server_fnc(void *ptr)
 	parameters[0] = CV_IMWRITE_JPEG_QUALITY; //jpeg
 	parameters[1] = syst.image_quality; //0-100 quality
 	
+	vector<sign_data> Signs;
+	
 	Object<Mat> *curObj = NULL;
 	Queue<Mat> &queue = syst.queue;
 	
@@ -208,10 +210,14 @@ void* server_fnc(void *ptr)
 			Mat &frame = *(curObj->obj);
 			imencode(".jpg", frame, buffer, parameters);
 			
-			//syst.engine_get(eng);
-			
 			srv.send(Image_t,(uint32_t)buffer.size(),(void *)(&buffer[0]));
-			srv.send(Line_t,sizeof(line_data),(void *)curLineData);
+			srv.send(Line_t,sizeof(line_data),(void *)(curLineData->obj));
+			
+			syst.signs_get(Signs);
+			for(int i=0;i<Signs.size();i++)
+			{
+				srv.send(Sing_t,sizeof(sign_data),(void *)(&Signs[i]));
+			}
 			
 			curObj->free();
 			curLineData->free();

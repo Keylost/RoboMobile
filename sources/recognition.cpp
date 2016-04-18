@@ -138,81 +138,119 @@ void recognize_sign(const Mat& frame)
  * 
  * Функция определяет наличие линии на изображении и заполняет поле myline объекта класса Recognition.
  */
-void recognize_line(const Mat& roi, line_data &myline)
+int scan_row = 350;
+int center_prev=-1;
+int center =-1;
+int border_left=0;
+int border_right =0;
+int border_left_prev=0;
+int border_right_prev =0;
+void recognize_line(const Mat& orig, line_data &myline)
 {
-	int min=0,max=0,minp=0,maxp=0;
+	center_prev = center;
+	border_left_prev = border_left;
+	border_right_prev = border_right;
 	
-	Mat gray,bin;
-	int xmin =100,xmax=540;
-	int left=0,right=0;
+	int b=0,g=0,r=0,y=0;
 	uint8_t *row;
-	uint32_t xb=0; 
-	uint32_t black=0;
-	int rb_cen =0,rb_count=0;
+	row = (uint8_t*)orig.ptr<uint8_t>(scan_row);
 	
-	cvtColor(roi,gray,CV_BGR2GRAY);
-	GaussianBlur(gray, gray, Size(7,7), 2, 0, BORDER_DEFAULT);	
-	
-	for(int i=gray.rows-1;i>=0;i-=3)
+	if(center_prev!=-1)
 	{
-		xb=0,black=0;
-		int min_diff = 1000;
-		int center = -1;
-		row = (uint8_t*)gray.ptr<uint8_t>(i);
-		for(int j=xmin;j<=xmax;j++)
+		int j = center_prev;
+		b = row[j*3+0], g = row[j*3+1], r = row[j*3+2];
+		y = b*0.0722 + g*0.7152 + r*0.2126;
+		if(y<60)
 		{
-			if(row[j]<60)
+			int i=j+1;
+			for(; i<orig.cols;i++)
 			{
-				xb+=j;
-				black++;
-				int start_point = j;
-				j++;
-				while(j<=xmax && row[j]<60) j++;
-				int center_tmp = (j+start_point)/2;
-				if(j-start_point>40 && abs(myline.robot_center-center)<min_diff)
+				b = row[i*3+0], g = row[i*3+1], r = row[i*3+2];
+				y = b*0.0722 + g*0.7152 + r*0.2126;
+				if(y>60) break;
+			}
+			border_right = i;
+			i=j-1;
+			for(; i>=0;i--)
+			{
+				b = row[i*3+0], g = row[i*3+1], r = row[i*3+2];
+				y = b*0.0722 + g*0.7152 + r*0.2126;
+				if(y>60) break;
+			}
+			border_left = i;
+			center = (border_right+border_left)/2;
+		}
+		else
+		{
+			center_prev=-1;
+			//center = (border_right+border_left)/2;
+		}
+	}
+	if(center_prev==-1)
+	{
+		int mindiff=1000;
+		for(int i=0;i<orig.cols;i++)
+		{
+			b = row[i*3+0], g = row[i*3+1], r = row[i*3+2];
+			y = b*0.0722 + g*0.7152 + r*0.2126;
+			if(y<60)
+			{
+				int startpoint = i;
+				i++;
+				while(y<60 && i<orig.cols)
 				{
-					min_diff=abs(myline.robot_center-center);
+					b = row[i*3+0], g = row[i*3+1], r = row[i*3+2];
+					y = b*0.0722 + g*0.7152 + r*0.2126;
+					i++;
+				}
+				int center_tmp=(i+startpoint)/2;
+				int difftmp = abs(myline.robot_center-center_tmp);
+				if(difftmp<mindiff)
+				{
+					mindiff = difftmp;
 					center = center_tmp;
-					left = start_point;
-					right = j-1;
+					border_left = startpoint;
+					border_right = i;
 				}
 			}
 		}
-		if(center!=-1)
-		{
-				if(right - left<200)
-				{
-					rb_cen += center; rb_count++;
-					min = min+left;max++;
-				}
-				else
-				{
-					minp+=left; maxp++;
-				}
-		}
-		
-		xmin+=2;
-		xmax-=2;
 	}
 	
-	
-	if(rb_count>0)
+	if(center_prev!=-1)
 	{
-		if(maxp>0)//stop or cross
+	if(abs(border_right-border_right_prev)>40)
+	{
+		if(abs(border_left-border_left_prev)<40)
 		{
-			if(min/max-minp/maxp<20)
-			{
-				myline.stop_line =true;
-				printf("stopline %d %d\n",minp/maxp,min/max);
-			}
+			myline.stop_line = true;
+			border_right = border_right_prev + (border_left-border_left_prev);
+			center = (border_left+border_right)/2;
+			printf("stop line \n");
 		}
-		int mcenter = rb_cen/rb_count;
-		myline.on_line=true;
-		myline.center_of_line =mcenter;
+		else
+		{
+			printf("crossroad \n");
+			border_left = border_left_prev;
+			border_right = border_right_prev;
+			center = center_prev;
+		}
+	}
+	else if(abs(border_left-border_left_prev)>40)
+	{
+		border_left = border_left_prev + (border_right-border_right_prev);
+		center = (border_left+border_right)/2;
+		printf("crossroad \n");
+	}
+	}
+	
+	if(center!=-1)
+	{
+		myline.center_of_line = center;
+		myline.on_line = true;
 	}
 	else
 	{
-		myline.on_line=false;
+		myline.on_line = false;
 	}
 }
 
@@ -230,7 +268,7 @@ void* recognize_line_fnc(void *ptr)
 	{
 		Object<line_data> *newObj = new Object<line_data>();
 		curObj = queue.waitForNewObject(curObj);
-		Mat frame = (*(curObj->obj))(linearea);
+		Mat &frame = *(curObj->obj);;
 		recognize_line(frame,*(newObj->obj));
 		qline.push(newObj);
 		
@@ -240,10 +278,11 @@ void* recognize_line_fnc(void *ptr)
 
 void* recognize_sign_fnc(void *ptr)
 {
+	robotimer tm;
+	long spendTime = 0;
 	System &syst = *((System *)ptr);
 	Rect &signarea = syst.signarea;
 	int lsz = 0,gsz=0;
-	timespec cur_time;
 	vector<sign_data> SignsGlobal;
 	
 	Object<Mat> *curObj = NULL;
@@ -251,29 +290,30 @@ void* recognize_sign_fnc(void *ptr)
 	
 	while(1)
 	{
+		tm.start();
 		curObj = queue.waitForNewObject(curObj);
-		Mat frame = (*(curObj->obj))(signarea);
+		Mat frame = (*(curObj->obj))(signarea);	
 		
 		recognize_sign(frame);
+		tm.stop();
+		spendTime = tm.get();
 		
-		clock_gettime(CLOCK_REALTIME, &cur_time);
 		lsz = Signs.size();
 		for(int i=0;i<lsz;i++)
 		{
 			signs cur_sign = Signs[i].sign;
-			Signs[i].detect_time = cur_time;
+			Signs[i].detect_time = 0;
 			for(int j=i+1;j<lsz;j++)
 			{
 				if(Signs[j].sign==cur_sign)
 				{
 					Signs.erase(Signs.begin()+j);
 					lsz--;
+					j--;
 				}
 			}
 		}
 		
-		
-		syst.signs_get(SignsGlobal);
 		gsz = SignsGlobal.size();
 		for(int i=0;i<gsz;i++)
 		{
@@ -287,8 +327,10 @@ void* recognize_sign_fnc(void *ptr)
 					lsz--;
 				}
 			}
+			
+			SignsGlobal[i].detect_time += spendTime;
 			//удалить устаревшие данные
-			if(((cur_time.tv_sec-SignsGlobal[i].detect_time.tv_sec)*1000 + (cur_time.tv_nsec-SignsGlobal[i].detect_time.tv_nsec)/1000000)>1000)
+			if(SignsGlobal[i].detect_time>1000)
 			{
 				SignsGlobal.erase(SignsGlobal.begin()+i);
 			}
@@ -301,7 +343,6 @@ void* recognize_sign_fnc(void *ptr)
 		
 		syst.signs_set(SignsGlobal);
 		
-		SignsGlobal.clear();
 		Signs.clear();
 		
 		curObj->free();
