@@ -108,9 +108,12 @@ void* arduino_fnc(void *ptr)
 	
 	while(1)
 	{
+		syst.engine_get(eng);
 		controller.send_command(&eng);
 		int spd=controller.feedback();
 		if(spd!=-1) eng.real_speed = spd;
+		syst.engine_set_realSpeed(eng.real_speed);
+		usleep(10000); //10 ms. максимальная задержка реакции робоавтомобиля
 	}
 	controller.deinit();
 	return NULL;

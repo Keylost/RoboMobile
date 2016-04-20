@@ -34,6 +34,7 @@ class System
 	
 	
 	void engine_get(Engine &destination);
+	void engine_set_realSpeed(uint32_t realSpeed);
 	void engine_set(Engine &source);
 	void signs_get(vector<sign_data> &destination);
 	void signs_set(vector<sign_data> &source);

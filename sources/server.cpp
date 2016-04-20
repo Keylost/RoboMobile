@@ -209,12 +209,14 @@ void* server_fnc(void *ptr)
 			curLineData = qline.waitForNewObject(curLineData);
 			Mat &frame = *(curObj->obj);
 			imencode(".jpg", frame, buffer, parameters);
+			syst.engine_get(eng);
 			
 			srv.send(Image_t,(uint32_t)buffer.size(),(void *)(&buffer[0]));
 			srv.send(Line_t,sizeof(line_data),(void *)(curLineData->obj));
+			srv.send(Engine_t,sizeof(Engine),(void *)(&eng));
 			
 			syst.signs_get(Signs);
-			for(int i=0;i<Signs.size();i++)
+			for(unsigned i=0;i<Signs.size();i++)
 			{
 				srv.send(Sing_t,sizeof(sign_data),(void *)(&Signs[i]));
 			}

@@ -209,7 +209,16 @@ void System::engine_get(Engine &destination)
 void System::engine_set(Engine &source)
 {
 	pthread_mutex_lock(&(engine_mutex));
-	memcpy(&engine,&source,sizeof(Engine));
+	engine.speed = source.speed;
+	engine.angle = source.angle;
+	engine.direction = source.direction;
+	pthread_mutex_unlock(&(engine_mutex));
+}
+
+void System::engine_set_realSpeed(uint32_t realSpeed)
+{
+	pthread_mutex_lock(&(engine_mutex));
+	engine.real_speed = realSpeed;
 	pthread_mutex_unlock(&(engine_mutex));
 }
 
