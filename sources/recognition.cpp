@@ -25,6 +25,7 @@ void recognize_sign(const Mat& frame)
 	
 	findContours(result, contours, hierarchy, CV_RETR_LIST, CV_CHAIN_APPROX_NONE, Point(0, 0) );
 	mysign.sign = sign_none;
+	mysign.state = greenlight;
 	vector<Point> approx;
 	
 	for(size_t i=0;i<contours.size();i++)
@@ -55,7 +56,7 @@ void recognize_sign(const Mat& frame)
 			dx = approx[2].x-approx[1].x; dy = approx[2].y-approx[1].y;
 			l2 = sqrt((dx*dx)+(dy*dy));
 			double dl = l2/l1;
-			if(dl>=1.8&&dl<=2.2) //Traffic light
+			if(dl>1.8&&dl<=2.2) //Traffic light
 			{
 				dx = approx[1].x - approx[0].x; dy = approx[3].y - approx[2].y;
 				l3 = sqrt((dx*dx) + (dy*dy));
@@ -83,7 +84,7 @@ void recognize_sign(const Mat& frame)
 					{
 						LOG("[I]: Start raffic light found");
 						mysign.area = boundingarea;
-						mysign.sign = sign_trafficlight;
+						mysign.sign = sign_starttrafficlight;						
 					}
 				}
 			}

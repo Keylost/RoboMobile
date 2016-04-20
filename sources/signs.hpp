@@ -10,7 +10,8 @@ enum signs
 	sign_crosswalk 	   = 2,
 	sign_trafficlight  = 3,
 	sign_mainroad      = 4,
-	sign_giveway       = 5
+	sign_giveway       = 5,
+	sign_starttrafficlight = 6
 };
 
 enum trafficlight_states
