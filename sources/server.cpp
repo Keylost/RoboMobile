@@ -71,48 +71,66 @@ Server::Server(System &syst)
 	start();
 }
 
+
+void sockOptEnable(int sockfd, int optName)
+{
+	int32_t optval = 1;
+	size_t optlen = sizeof(optval);
+	if(setsockopt(sockfd, SOL_SOCKET, optName, (char *)&optval, optlen) < 0)
+	{
+		perror("sockOptEnable()");
+		close(sockfd);
+		exit(EXIT_FAILURE);
+	}
+}
+
 /*
  * Функция start() устанавливает соединение с клиентским приложением. 
  */
 void Server::start()
 {
-    //open sock and wait for client
+	//open sock and wait for client
 	if(isconnected) return;
 	LOG("Server started");
-    socklen_t clilen;
-    struct sockaddr_in serv_addr, cli_addr;    
-
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0)
-       LOG("ERROR opening socket");
+	socklen_t clilen;
+	struct sockaddr_in serv_addr, cli_addr;    
+	
+	sockfd = socket(AF_INET, SOCK_STREAM, 0);
+	if (sockfd < 0)
+	{
+		LOG("ERROR opening socket");
+	}
+	
+	sockOptEnable(sockfd,SO_KEEPALIVE);
+	sockOptEnable(sockfd,SO_REUSEADDR);
 
     bzero((char *) &serv_addr, sizeof(serv_addr));
 
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_addr.s_addr = INADDR_ANY;
-    serv_addr.sin_port = htons(portno);
-
+	serv_addr.sin_family = AF_INET;
+	serv_addr.sin_addr.s_addr = INADDR_ANY;
+	serv_addr.sin_port = htons(portno);
+	
 	while(bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr))<0)
     {
-        LOG("ERROR binding socket");
-        sleep(1); //wait 1 sec befor next try
-    }
+		LOG("ERROR binding socket");
+		sleep(1); //wait 1 sec befor next try
+	}
 
-     listen(sockfd,5);
-     clilen = sizeof(cli_addr);
-     LOG("waiting for client");
-     newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
-     LOG("client connected");
-     isconnected=true;
-
-     uint16_t width = (uint16_t)sys->capture_width;
-     uint16_t height = (uint16_t)sys->capture_height;
-     send_data(&width, newsockfd, 2);
-     send_data(&height, newsockfd, 2);
-     
-     send_data(&sys->signarea,newsockfd,sizeof(Rect));
-     send_data(&sys->linearea,newsockfd,sizeof(Rect));
-     return;
+	listen(sockfd,5);
+	clilen = sizeof(cli_addr);
+	LOG("waiting for client");
+	newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
+	LOG("client connected");
+	isconnected=true;
+	
+	uint16_t width = (uint16_t)sys->capture_width;
+	uint16_t height = (uint16_t)sys->capture_height;
+	send_data(&width, newsockfd, 2);
+	send_data(&height, newsockfd, 2);
+		 
+	send_data(&sys->signarea,newsockfd,sizeof(Rect));
+	send_data(&sys->linearea,newsockfd,sizeof(Rect));
+	return;
 }
 
 /*

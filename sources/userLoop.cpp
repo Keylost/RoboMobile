@@ -12,10 +12,8 @@ uint32_t speed_trafficlight  = 0; //скорость при обнаружени
 
 
 /*
- * Функция loop() занимается обработкой данных о черной линии и разметке, хранящихся в поле
- * myline объекта класса Recognition
- * 
- * Функция задает параметры движения робота от данных хранящихся в myline.
+ * Функция loop() занимается обработкой данных линии, разметке и знаках
+ * Функция  должна задавать параметры движения робота в engine.
  */
 
 double delta=0,old_delta=0;
@@ -68,7 +66,7 @@ void userLoop(line_data &myline, vector<sign_data> &Signs, Engine &engine)
 		
 		//calculate speed begin
 		int ee = abs((int32_t)engine.angle - ANGLE_CENTER);
-		engine.speed = MAX_SPEED - ee*((MAX_SPEED-MIN_SPEED)/ANGLE_RANGE); //
+		engine.speed = MAX_SPEED - ee*((MAX_SPEED-MIN_SPEED)/ANGLE_RANGE);
 		//calculate speed end
 	}
 	else
