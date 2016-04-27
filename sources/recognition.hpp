@@ -18,3 +18,4 @@ void* recognize_sign_fnc(void *ptr);
 void* recognize_line_fnc(void *ptr);
 void recognize_sign(const Mat& orig);
 void recognize_line(const Mat& orig);
+uint8_t get_light(Mat& roi);

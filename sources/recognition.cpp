@@ -2,6 +2,8 @@
 
 vector<sign_data> Signs;
 sign_data mysign;
+
+
 /*
  * Функция recognize_sign() занимается распознаванием знаков на изображении
  * Входные данные:
@@ -69,6 +71,7 @@ void recognize_sign(const Mat& frame)
 						LOG("[I]: Traffic light found");
 						mysign.area = boundingarea;
 						mysign.sign = sign_trafficlight;
+						mysign.state = get_light(rr);
 					}
 				}
 			}
@@ -84,7 +87,8 @@ void recognize_sign(const Mat& frame)
 					{
 						LOG("[I]: Start raffic light found");
 						mysign.area = boundingarea;
-						mysign.sign = sign_starttrafficlight;						
+						mysign.sign = sign_starttrafficlight;
+						mysign.state = get_light(rr);					
 					}
 				}
 			}
@@ -253,6 +257,8 @@ void recognize_line(const Mat& orig, line_data &myline)
 	{
 		myline.on_line = false;
 	}
+	
+	return;
 }
 
 void* recognize_line_fnc(void *ptr)
@@ -275,6 +281,8 @@ void* recognize_line_fnc(void *ptr)
 		
 		curObj->free();
 	}
+	
+	return NULL;
 }
 
 void* recognize_sign_fnc(void *ptr)
@@ -348,4 +356,36 @@ void* recognize_sign_fnc(void *ptr)
 		
 		curObj->free();
 	}
+	
+	return NULL;
+}
+
+
+/*
+ * Функция get_light() определяет активный сигнал светофора
+ * Входные данные:
+ * Mat& roi - указатель на изображение светофора
+ * Возвращаемые значения: см. перечисление trafficlight_states в signs.hpp
+ */
+uint8_t get_light(Mat& roi)
+{
+	int rg=0,rb=0,gb=0;
+	int b=0,g=0,r=0;
+	
+	uint8_t *row;
+	for(int rows=0;rows<roi.rows;rows++)
+	{
+		row = (uint8_t*)roi.ptr<uint8_t>(rows);
+		for(int col=0;col<roi.cols;col++)
+		{
+			b = row[col*3]; g=row[col*3+1]; r=row[col*3+2];
+			if(r-g>rg) rg=r-g;
+			if(r-b>rb) rb=r-b;
+			if(g-b>gb) gb=g-b;
+		}
+	}
+	
+	if(rb>150 && rg>150 && gb<120 ) return redlight;
+	if(gb>100 && rb>100) return yellowlight;
+	else return greenlight;
 }

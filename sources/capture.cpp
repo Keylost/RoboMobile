@@ -32,42 +32,31 @@ void* capture_fnc(void *ptr)
 	cap.set(CV_CAP_PROP_FPS,30);
 	
 	robotimer r_timer;
+	uint32_t fps=0;
+	
+	r_timer.start();
 	while(1) // Capture frame from camera
-	{    
+	{
 		if (cap.grab())
         {
-			r_timer.start();
-			
 			Object<Mat> *newObj = new Object<Mat>();
 			cap.retrieve(*(newObj->obj),0);
-			queue.push(newObj);
-			r_timer.stop();
-			printf("runtime: %ld ms\n",r_timer.get());	
+			queue.push(newObj);	
 		}
 		else
-		{			
+		{
 			LOG("[I]: End of video stream.");
 			exit(EXIT_SUCCESS);
 		}
+		fps++;
+		r_timer.stop();
+		if(r_timer.get()>=1000)
+		{
+			printf("FPS: %d\n",fps);
+			fps=0;
+			r_timer.start();
+		}		
 	}
 	
 	return NULL;
 }
-
-/*
-			//Захватить новый кадр во frame
-			Object *obj = new Object(); 
-			cap.retrieve(*(obj->img),0);
-			
-			//забрать из очереди список потребителей
-			queue.pop(prodlist);
-			
-			//установить счетчик использования 
-			obj->useCount = prodlist.size();
-			
-			for (list<Query*>::iterator it=prodlist.begin(); it!=prodlist.end(); it++)
-			{
-				(*it)->obj = obj;
-				pthread_cond_signal((*it)->cond);
-			}
-*/

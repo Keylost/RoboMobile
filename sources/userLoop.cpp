@@ -1,25 +1,149 @@
+/*
+ * В данном файле находятся функции,
+ * устанавливающие параметры движения робота
+ * в зависимости от данных анализа изображения
+ */
 #include "userLoop.hpp"
 
-#define ANGLE_CENTER  90 //угол сервомотора, при котором колеса робота смотрят прямо
-#define ANGLE_RANGE  35 //максимальное отклонение сервомотора от центрального положения
-#define MAX_SPEED  990 //максимальная скорость движения в условных единицах (от 0 до 999)
-#define MIN_SPEED  450 //минимальная скорость движения в условных единицах (от 0 до 999)
-#define ANGLE_MIN  (ANGLE_CENTER - ANGLE_RANGE)
-#define ANGLE_MAX  (ANGLE_CENTER + ANGLE_RANGE)
-uint32_t speed_crosswalk = MIN_SPEED; //скорость при обнаружении пешеходного перехода
-uint32_t speed_stop      = 0; //скорость при обнаружении знака стоп
-uint32_t speed_trafficlight  = 0; //скорость при обнаружении желтого или красного сигнала светофора
-
-
-/*
- * Функция loop() занимается обработкой данных линии, разметке и знаках
- * Функция  должна задавать параметры движения робота в engine.
- */
+#define ANGLE_CENTER  			90 //угол сервомотора, при котором колеса робота смотрят прямо
+#define ANGLE_RANGE  			35 //максимальное отклонение сервомотора от центрального положения
+#define MAX_SPEED  				700 //максимальная скорость движения в условных единицах (от 0 до 999)
+#define MIN_SPEED  				450 //минимальная скорость движения в условных единицах (от 0 до 999)
+#define ANGLE_MIN  				(ANGLE_CENTER - ANGLE_RANGE)
+#define ANGLE_MAX  				(ANGLE_CENTER + ANGLE_RANGE)
+#define speed_crosswalk 		MIN_SPEED //скорость при обнаружении пешеходного перехода
+#define speed_stop      		0 //скорость при обнаружении знака стоп
+#define speed_trafficlight		0 //скорость при обнаружении желтого или красного сигнала светофора
 
 double delta=0,old_delta=0;
 robotimer timer_line;
+signs signPrev = sign_none;
+double signWeightDefault = 0.1;
+double signWeight = 0.1; //текущее влияние знака на скорость
 
+robotimer holder;
+int32_t holdFor = 0;
+bool hold = false;
+int32_t holdSpeed =0;
+void startHolding(int32_t holdForMs, int32_t speed)
+{
+	holder.start();
+	holdFor = holdForMs;
+	holdSpeed = speed;
+	hold = true;
+}
+
+void calcAngleAndSpeed(line_data &myline, Engine &engine);
+signs getMaxPrioritySign(vector<sign_data> &Signs);
+
+/*
+ * Функция userLoop() занимается обработкой данных о линии, разметке и знаках
+ * Функция  должна задавать параметры движения робота в engine.
+ * Никогда не используйте sleep или usleep в этой функции
+ */
 void userLoop(line_data &myline, vector<sign_data> &Signs, Engine &engine)
+{
+	/*
+	 * Функция вычисляет скорость движения и угол поворота на основании данных
+	 * о линии, и записывает эти параметры в engine
+	 */
+	
+	calcAngleAndSpeed(myline,engine);
+	if(hold)
+	{
+		holder.stop();
+		if(holder.get()>=holdFor)
+		{
+			hold = false;
+		}
+		else
+		{
+			engine.speed = holdSpeed;
+		}
+	}
+	
+	if(!hold)
+	{
+		signs current = getMaxPrioritySign(Signs);
+		
+		switch(current)
+		{
+			case sign_stop:
+			{
+				engine.speed = engine.speed - (engine.speed - MIN_SPEED)*signWeight;				
+				double tmpw = signWeight+0.03;
+				if(tmpw<1.0)
+				{
+					signWeight = tmpw;
+				}
+				break;
+			};
+			case sign_crosswalk:
+			{
+				engine.speed = engine.speed - (engine.speed - speed_crosswalk)*signWeight;
+				double tmpw = signWeight+0.03;
+				if(tmpw<1.0)
+				{
+					signWeight = tmpw;
+				}
+				break;
+			};
+			case sign_trafficlight:
+			{
+				
+				break;
+			};
+			default: break;
+		}
+	
+		if(signPrev!=sign_none && current!=signPrev)
+		{
+			switch(signPrev)
+			{
+				case sign_stop:
+				{
+					engine.speed = speed_stop;
+					signWeight = signWeightDefault;
+					startHolding(4000,speed_stop); //сохранять указанную скорость движения 2000 миллисекунд
+					break;
+				}
+				case sign_crosswalk:
+				{
+					engine.speed = speed_crosswalk;
+					signWeight = signWeightDefault;
+					startHolding(3000,speed_crosswalk);
+					break;
+				}
+				default:
+				{
+					break;
+				}		
+			}
+		}
+		signPrev = current;
+		
+		/*
+		if(myline.stop_line)
+		{
+			for(unsigned i=0;i<Signs.size();i++)
+			{
+				if(Signs[i].sign == sign_trafficlight || Signs[i].sign == sign_starttrafficlight)
+				{
+					if(Signs[i].state == redlight || Signs[i].state == yellowlight)
+					{
+						engine.speed = 0;
+					}
+				}
+			}
+		}
+		*/
+	}
+}
+
+
+
+
+void calcAngleAndSpeed(line_data &myline, Engine &engine)
 {
 	if(myline.on_line)
 	{
@@ -39,7 +163,6 @@ void userLoop(line_data &myline, vector<sign_data> &Signs, Engine &engine)
 					engine.speed=0;
 					return;
 				}
-				//else if(timer_line.get()>700 && timer_line.get()<9000) sl_passed = true;
 				else if(timer_line.get()>=9000)
 				{
 					timer_line.zero();
@@ -74,4 +197,34 @@ void userLoop(line_data &myline, vector<sign_data> &Signs, Engine &engine)
 		engine.speed = 0;
 		LOG("[W]: black line not found");
 	}
+}
+
+bool field[7];
+
+signs getMaxPrioritySign(vector<sign_data> &Signs)
+{
+	if(Signs.size()==0) return sign_none;
+	
+	memset(field,0,7);
+	
+	for(unsigned i=0;i<Signs.size();i++)
+	{
+		if(Signs[i].sign == sign_starttrafficlight || Signs[i].sign == sign_trafficlight)
+		{
+			if(Signs[i].state == redlight || Signs[i].state == yellowlight)
+			{
+				field[Signs[i].sign] = true;
+			}
+		}
+		field[Signs[i].sign] = true;
+	}
+	
+	if(field[sign_stop]) return sign_stop;
+	if(field[sign_trafficlight]) return sign_trafficlight;
+	if(field[sign_starttrafficlight]) return sign_starttrafficlight;
+	if(field[sign_crosswalk]) return sign_crosswalk;
+	if(field[sign_giveway]) return sign_giveway;
+	if(field[sign_mainroad]) return sign_mainroad;
+	
+	return Signs[0].sign;
 }
