@@ -36,6 +36,23 @@ void startHolding(int32_t holdForMs, int32_t speed)
 void calcAngleAndSpeed(line_data &myline, Engine &engine);
 signs getMaxPrioritySign(vector<sign_data> &Signs);
 
+signs in_handle = sign_none;
+bool in_signs(signs sign,vector<sign_data> &Signs)
+{
+	for(unsigned i=0;i<Signs.size();i++)
+	{
+		if(sign==Signs[i].sign) return true;
+	}
+	return false;
+}
+int get_signNum(signs sign,vector<sign_data> &Signs)
+{
+	for(unsigned i=0;i<Signs.size();i++)
+	{
+		if(sign==Signs[i].sign) return i;
+	}
+	return -1;
+}
 /*
  * Функция userLoop() занимается обработкой данных о линии, разметке и знаках
  * Функция  должна задавать параметры движения робота в engine.
@@ -48,6 +65,103 @@ void userLoop(line_data &myline, vector<sign_data> &Signs, Engine &engine)
 	 * о линии, и записывает эти параметры в engine
 	 */
 	
+	calcAngleAndSpeed(myline,engine);
+	
+	if(hold)
+	{
+		holder.stop();
+		if(holder.get()>=holdFor)
+		{
+			hold = false;
+			in_handle = sign_none;
+		}
+		else
+		{
+			engine.speed = holdSpeed;
+		}
+	}
+	
+	if(!hold)
+	{
+		if(in_handle==sign_none)
+		{
+			signs current = getMaxPrioritySign(Signs);
+			if(current!=sign_none)
+			{
+				if(current == sign_trafficlight || current == sign_starttrafficlight)
+				{
+					if(myline.stop_line)
+					{
+						in_handle = current;
+					}
+				}
+				else
+				{
+					in_handle = current;
+				}
+			}			
+		}
+		switch(in_handle)
+		{
+			case sign_none:
+			{
+				break;
+			};
+			case sign_stop:
+			{
+				if(in_signs(sign_stop,Signs))
+				{
+					engine.speed = engine.speed - (engine.speed - MIN_SPEED)*signWeight;				
+					double tmpw = signWeight+0.03;
+					if(tmpw<1.0)
+					{
+						signWeight = tmpw;
+					}
+				}
+				else
+				{
+					signWeight = signWeightDefault;
+					engine.speed = speed_stop;
+					startHolding(4000,speed_stop); //сохранять указанную скорость движения 2000 миллисекунд
+				}
+				break;
+			};
+			case sign_starttrafficlight:
+			{
+				int n = get_signNum(sign_starttrafficlight,Signs);
+				if(n==-1 || Signs[n].state != greenlight)
+				{
+					engine.speed = 0;
+				}
+				else
+				{
+					in_handle = sign_none;
+				}
+				
+				break;
+			};
+			case sign_trafficlight:
+			{
+				int n = get_signNum(sign_trafficlight,Signs);
+				if(n==-1 || Signs[n].state != greenlight)
+				{
+					engine.speed = 0;
+				}
+				else
+				{
+					in_handle = sign_none;
+				}
+				
+				break;
+			};
+			default:
+			{
+				break;
+			};
+		}
+	}
+	
+	/*
 	calcAngleAndSpeed(myline,engine);
 	if(hold)
 	{
@@ -121,23 +235,8 @@ void userLoop(line_data &myline, vector<sign_data> &Signs, Engine &engine)
 			}
 		}
 		signPrev = current;
-		
-		/*
-		if(myline.stop_line)
-		{
-			for(unsigned i=0;i<Signs.size();i++)
-			{
-				if(Signs[i].sign == sign_trafficlight || Signs[i].sign == sign_starttrafficlight)
-				{
-					if(Signs[i].state == redlight || Signs[i].state == yellowlight)
-					{
-						engine.speed = 0;
-					}
-				}
-			}
-		}
-		*/
 	}
+	*/
 }
 
 
@@ -226,5 +325,5 @@ signs getMaxPrioritySign(vector<sign_data> &Signs)
 	if(field[sign_giveway]) return sign_giveway;
 	if(field[sign_mainroad]) return sign_mainroad;
 	
-	return Signs[0].sign;
+	return sign_none;
 }
