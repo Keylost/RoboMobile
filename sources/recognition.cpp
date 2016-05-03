@@ -25,7 +25,7 @@ void recognize_sign(const Mat& frame)
 	equalizeHist(result, result);
 	Canny(result, result, 0, 255, 3);
 	
-	findContours(result, contours, hierarchy, CV_RETR_LIST, CV_CHAIN_APPROX_NONE, Point(0, 0) );
+	findContours(result, contours, hierarchy, CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE, Point(0, 0) );
 	mysign.sign = sign_none;
 	mysign.state = greenlight;
 	vector<Point> approx;
@@ -44,7 +44,6 @@ void recognize_sign(const Mat& frame)
 		if (approx.size() == 3)
 		{
 			if(colors.red<1000 || colors.white<500 || colors.blue>100 || colors.yellow>100 ||colors.red>2500)	continue;
-			printf("red %d white %d blue %d yellow %d black %d\n",colors.red,colors.white,colors.blue,colors.yellow,colors.black);
 			LOG("[I]: Giveway sign found");
 			mysign.area = boundingarea;
 			mysign.sign = sign_giveway;
@@ -143,14 +142,16 @@ void recognize_sign(const Mat& frame)
  * 
  * Функция определяет наличие линии на изображении и заполняет поле myline объекта класса Recognition.
  */
-int scan_row = 350;
+//int scan_row = 350;
 int center_prev=-1;
 int center =-1;
 int border_left=0;
 int border_right =0;
 int border_left_prev=0;
 int border_right_prev =0;
-void recognize_line(const Mat& orig, line_data &myline)
+bool crossroad = false;
+
+void recognize_line(const Mat& orig, line_data &myline,int scan_row)
 {
 	center_prev = center;
 	border_left_prev = border_left;
@@ -188,7 +189,6 @@ void recognize_line(const Mat& orig, line_data &myline)
 		else
 		{
 			center_prev=-1;
-			//center = (border_right+border_left)/2;
 		}
 	}
 	if(center_prev==-1)
@@ -223,29 +223,30 @@ void recognize_line(const Mat& orig, line_data &myline)
 	
 	if(center_prev!=-1)
 	{
-	if(abs(border_right-border_right_prev)>40)
-	{
-		if(abs(border_left-border_left_prev)<40)
+		if(abs(border_right-border_right_prev)>80)
 		{
-			myline.stop_line = true;
-			border_right = border_right_prev + (border_left-border_left_prev);
+			if(abs(border_left-border_left_prev)<20)
+			{
+				myline.stop_line = true;
+				border_right = border_right_prev + (border_left-border_left_prev);
+				center = (border_left+border_right)/2;
+			}
+			else
+			{
+				printf("crossroad \n");
+				crossroad = true;
+				border_left = border_left_prev;
+				border_right = border_right_prev;
+				center = center_prev;
+			}
+		}
+		else if(abs(border_left-border_left_prev)>40)
+		{
+			border_left = border_left_prev + (border_right-border_right_prev);
 			center = (border_left+border_right)/2;
-			printf("stop line \n");
-		}
-		else
-		{
 			printf("crossroad \n");
-			border_left = border_left_prev;
-			border_right = border_right_prev;
-			center = center_prev;
+			crossroad = true;
 		}
-	}
-	else if(abs(border_left-border_left_prev)>40)
-	{
-		border_left = border_left_prev + (border_right-border_right_prev);
-		center = (border_left+border_right)/2;
-		printf("crossroad \n");
-	}
 	}
 	
 	if(center!=-1)
@@ -261,6 +262,12 @@ void recognize_line(const Mat& orig, line_data &myline)
 	return;
 }
 
+int t1=0,
+	t2=0,
+	t3=0,
+	t4=0,
+	t5=0,
+	t6=0;
 void* recognize_line_fnc(void *ptr)
 {
 	System &syst = *((System *)ptr);
@@ -275,8 +282,39 @@ void* recognize_line_fnc(void *ptr)
 	{
 		Object<line_data> *newObj = new Object<line_data>();
 		curObj = queue.waitForNewObject(curObj);
-		Mat &frame = *(curObj->obj);;
-		recognize_line(frame,*(newObj->obj));
+		Mat &frame = *(curObj->obj);
+		
+		recognize_line(frame,*(newObj->obj),350);
+		if((newObj->obj)->stop_line)
+		{
+			t1 = center_prev;
+			t2 = center;
+			t3 = border_left;
+			t4 = border_right;
+			t5 = border_left_prev;
+			t6 = border_right_prev;
+			
+			recognize_line(frame,*(newObj->obj),340);
+			recognize_line(frame,*(newObj->obj),330);
+			
+			center_prev = t1;
+			center = t2;
+			border_left = t3;
+			border_right = t4;
+			border_left_prev = t5;
+			border_right_prev = t6;
+			
+			if(crossroad)
+			{
+				(newObj->obj)->stop_line = false;
+				crossroad = false;					
+			}
+			else
+			{
+				printf("stop line\n");
+			}
+		}
+		
 		qline.push(newObj);
 		
 		curObj->free();

@@ -7,7 +7,7 @@
 
 #define ANGLE_CENTER  			90 //угол сервомотора, при котором колеса робота смотрят прямо
 #define ANGLE_RANGE  			35 //максимальное отклонение сервомотора от центрального положения
-#define MAX_SPEED  				700 //максимальная скорость движения в условных единицах (от 0 до 999)
+#define MAX_SPEED  				990 //максимальная скорость движения в условных единицах (от 0 до 999)
 #define MIN_SPEED  				450 //минимальная скорость движения в условных единицах (от 0 до 999)
 #define ANGLE_MIN  				(ANGLE_CENTER - ANGLE_RANGE)
 #define ANGLE_MAX  				(ANGLE_CENTER + ANGLE_RANGE)
@@ -20,6 +20,8 @@ robotimer timer_line;
 signs signPrev = sign_none;
 double signWeightDefault = 0.1;
 double signWeight = 0.1; //текущее влияние знака на скорость
+
+bool stoplineInHandle = false;
 
 robotimer holder;
 int32_t holdFor = 0;
@@ -90,13 +92,13 @@ void userLoop(line_data &myline, vector<sign_data> &Signs, Engine &engine)
 			{
 				if(current == sign_trafficlight || current == sign_starttrafficlight)
 				{
-					if(myline.stop_line)
+					if(stoplineInHandle)
 					{
 						in_handle = current;
 					}
 				}
 				else
-				{
+				{					
 					in_handle = current;
 				}
 			}			
@@ -126,8 +128,28 @@ void userLoop(line_data &myline, vector<sign_data> &Signs, Engine &engine)
 				}
 				break;
 			};
+			case sign_crosswalk:
+			{
+				if(in_signs(sign_crosswalk,Signs))
+				{
+					engine.speed = engine.speed - (engine.speed - speed_crosswalk)*signWeight;				
+					double tmpw = signWeight+0.03;
+					if(tmpw<1.0)
+					{
+						signWeight = tmpw;
+					}
+				}
+				else
+				{
+					signWeight = signWeightDefault;
+					engine.speed = speed_crosswalk;
+					startHolding(4000,speed_crosswalk); //сохранять указанную скорость движения 2000 миллисекунд
+				}
+				break;
+			};
 			case sign_starttrafficlight:
 			{
+				
 				int n = get_signNum(sign_starttrafficlight,Signs);
 				if(n==-1 || Signs[n].state != greenlight)
 				{
@@ -151,7 +173,16 @@ void userLoop(line_data &myline, vector<sign_data> &Signs, Engine &engine)
 				{
 					in_handle = sign_none;
 				}
-				
+				break;
+			};
+			case sign_giveway:
+			{
+				in_handle = sign_none;
+				break;
+			};
+			case sign_mainroad:
+			{
+				in_handle = sign_none;
 				break;
 			};
 			default:
@@ -160,83 +191,6 @@ void userLoop(line_data &myline, vector<sign_data> &Signs, Engine &engine)
 			};
 		}
 	}
-	
-	/*
-	calcAngleAndSpeed(myline,engine);
-	if(hold)
-	{
-		holder.stop();
-		if(holder.get()>=holdFor)
-		{
-			hold = false;
-		}
-		else
-		{
-			engine.speed = holdSpeed;
-		}
-	}
-	
-	if(!hold)
-	{
-		signs current = getMaxPrioritySign(Signs);
-		
-		switch(current)
-		{
-			case sign_stop:
-			{
-				engine.speed = engine.speed - (engine.speed - MIN_SPEED)*signWeight;				
-				double tmpw = signWeight+0.03;
-				if(tmpw<1.0)
-				{
-					signWeight = tmpw;
-				}
-				break;
-			};
-			case sign_crosswalk:
-			{
-				engine.speed = engine.speed - (engine.speed - speed_crosswalk)*signWeight;
-				double tmpw = signWeight+0.03;
-				if(tmpw<1.0)
-				{
-					signWeight = tmpw;
-				}
-				break;
-			};
-			case sign_trafficlight:
-			{
-				
-				break;
-			};
-			default: break;
-		}
-	
-		if(signPrev!=sign_none && current!=signPrev)
-		{
-			switch(signPrev)
-			{
-				case sign_stop:
-				{
-					engine.speed = speed_stop;
-					signWeight = signWeightDefault;
-					startHolding(4000,speed_stop); //сохранять указанную скорость движения 2000 миллисекунд
-					break;
-				}
-				case sign_crosswalk:
-				{
-					engine.speed = speed_crosswalk;
-					signWeight = signWeightDefault;
-					startHolding(3000,speed_crosswalk);
-					break;
-				}
-				default:
-				{
-					break;
-				}		
-			}
-		}
-		signPrev = current;
-	}
-	*/
 }
 
 
@@ -245,28 +199,29 @@ void userLoop(line_data &myline, vector<sign_data> &Signs, Engine &engine)
 void calcAngleAndSpeed(line_data &myline, Engine &engine)
 {
 	if(myline.on_line)
-	{
-		if(myline.stop_line)
+	{	
+		if(stoplineInHandle)
 		{
 			timer_line.stop();
-			if(timer_line.get()<=0)
+			if(timer_line.get()<=1500)
 			{
-				timer_line.start();
-				engine.speed=0;
-				return;
+				engine.speed=MIN_SPEED;
+				//return;
 			}
 			else
 			{
-				if(timer_line.get()<=700)
-				{
-					engine.speed=0;
-					return;
-				}
-				else if(timer_line.get()>=9000)
-				{
-					timer_line.zero();
-					myline.stop_line = false;
-				}
+				myline.stop_line = false;
+				stoplineInHandle = false;
+			}
+		}
+		else
+		{
+			if(myline.stop_line)
+			{
+				stoplineInHandle = true;
+				timer_line.start();
+				engine.speed=MIN_SPEED;
+				//return;
 			}
 		}
 
@@ -287,8 +242,11 @@ void calcAngleAndSpeed(line_data &myline, Engine &engine)
 		//calculate angle end
 		
 		//calculate speed begin
-		int ee = abs((int32_t)engine.angle - ANGLE_CENTER);
-		engine.speed = MAX_SPEED - ee*((MAX_SPEED-MIN_SPEED)/ANGLE_RANGE);
+		if(!stoplineInHandle)
+		{
+			int ee = abs((int32_t)engine.angle - ANGLE_CENTER);
+			engine.speed = MAX_SPEED - ee*((MAX_SPEED-MIN_SPEED)/ANGLE_RANGE);
+		}
 		//calculate speed end
 	}
 	else

@@ -224,23 +224,30 @@ void* server_fnc(void *ptr)
 	while(1)
 	{
 			curObj = queue.waitForNewObject(curObj);
+			//printf("img\n");
 			curLineData = qline.waitForNewObject(curLineData);
+			//printf("line\n");
 			Mat &frame = *(curObj->obj);
 			imencode(".jpg", frame, buffer, parameters);
+			//printf("encode\n");
 			syst.engine_get(eng);
+			//printf("engine\n");
 			
 			srv.send(Image_t,(uint32_t)buffer.size(),(void *)(&buffer[0]));
 			srv.send(Line_t,sizeof(line_data),(void *)(curLineData->obj));
 			srv.send(Engine_t,sizeof(Engine),(void *)(&eng));
+			
 			
 			syst.signs_get(Signs);
 			for(unsigned i=0;i<Signs.size();i++)
 			{
 				srv.send(Sing_t,sizeof(sign_data),(void *)(&Signs[i]));
 			}
+			//printf("send\n");
 			
 			curObj->free();
 			curLineData->free();
+			//printf("data free\n");
 	}
 	
 	return NULL;
