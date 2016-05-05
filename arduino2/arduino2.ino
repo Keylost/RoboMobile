@@ -9,19 +9,15 @@
 #define encoder0PinA  2
 //#define encoder0PinB  5
 
-//выход на 5 вольт
-#define addition_vdd 11
-
 #define upwm_pin 6 //пин для управления скоростью мотора. канал M1 на шилде
 #define udir_pin 7 //пин для управления направлением вращения. канал M1 на шилде
 #define uservo_pin 9 //пин куда подключен сервомотор
 
 #define head_light_pin A0 //передние фары
-#define left_indicator_pin A1 //левый поворотник
+#define left_indicator_pin A3 //левый поворотник
 #define right_indicator_pin A2 //правый поворотник
-#define stop_indicator_pin A3 //стоп сигналы
+#define stop_indicator_pin A1 //стоп сигналы
 #define rear_light_pin A4 // задние фары
-#define gnd_analog_pin A5 //масса
 
 #define turn_signal_freq 500 //частота моргания поворотников в миллисекундах
 #define deviation 10 //значение угла поворота сервомотора в градусах при котором будут включены поворотники
@@ -104,15 +100,11 @@ class Motor
 Motor motor1(upwm_pin,udir_pin);
 
 void setup(void)
-{
-  pinMode(addition_vdd,OUTPUT);
-  digitalWrite(addition_vdd, HIGH);
-  
-  Serial.begin(115200);
-  Serial.setTimeout(20);
+{  
+  Serial1.begin(115200);
+  Serial1.setTimeout(20);
   myservo.attach(uservo_pin);  
   motor1.set_direction(FORWARD);
-  pinMode(gnd_analog_pin,OUTPUT);
   pinMode(rear_light_pin,OUTPUT);
   pinMode(head_light_pin,OUTPUT);
   pinMode(stop_indicator_pin,OUTPUT);
@@ -120,7 +112,6 @@ void setup(void)
   pinMode(right_indicator_pin,OUTPUT);
   digitalWrite(rear_light_pin, HIGH);
   digitalWrite(head_light_pin, HIGH);
-  digitalWrite(gnd_analog_pin,LOW);
   digitalWrite(left_indicator_pin,LOW);
   digitalWrite(right_indicator_pin,LOW);
   digitalWrite(stop_indicator_pin,LOW);
@@ -193,17 +184,17 @@ void serial_send_data()
   real_speed = encoder0Pos*1.3;
   encoder0Pos=0;
   last_speed_update = millis();
-   Serial.print('F');
-   Serial.print(real_speed);
-   Serial.print('E');
+   Serial1.print('F');
+   Serial1.print(real_speed);
+   Serial1.print('E');
 }
 
 
 void serial_get_data()
 {
-   if (Serial.available() > 0)
+   if (Serial1.available() > 0)
    {
-       char c = Serial.read();
+       char c = Serial1.read();
        
        switch(cur_state)
        {
@@ -215,9 +206,9 @@ void serial_get_data()
         case 2:
             if(c == 'D')
             {
-               Corner = Serial.parseInt();
-               DIR = Serial.parseInt();
-               Speed = Serial.parseInt();
+               Corner = Serial1.parseInt();
+               DIR = Serial1.parseInt();
+               Speed = Serial1.parseInt();
                cur_state = 0;
                time = time_current;
             }

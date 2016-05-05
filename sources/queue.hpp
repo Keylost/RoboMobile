@@ -7,8 +7,6 @@
 using namespace std;
 using namespace cv;
 
-template<typename T> void *garbage_collector_fnc(void *ptr);
-
 template<typename T>
 class Object
 {
@@ -28,14 +26,10 @@ class Object
 template<typename T>
 class Queue
 {
-	pthread_mutex_t _lock;	
+	pthread_mutex_t _lock;
 	Object<T> *_obj;
 	
 	public:
-	pthread_mutex_t mutex_garbage;
-	vector<Object<T> *> garbage;
-	
-	void add_to_garbage(Object<T> *eobj);
 	
 	Queue();
 	

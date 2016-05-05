@@ -99,7 +99,6 @@ void recognize_sign(const Mat& frame)
 				l4 = sqrt((dx*dx) + (dy*dy));
 				if (abs(l4 - l2) < 0.1*l4 && abs(l3 - l1) < 0.1*l3)
 				{
-					printf("blue %d, black %d yellow %d\n",colors.blue,colors.black,colors.yellow);
 					if (colors.blue>area*0.5 && colors.blue<area*0.92 && colors.black>area*0.05 && colors.black<area*0.37 && colors.yellow<area*0.4)
 					{
 						mysign.sign = sign_crosswalk;
@@ -142,7 +141,6 @@ void recognize_sign(const Mat& frame)
  * 
  * Функция определяет наличие линии на изображении и заполняет поле myline объекта класса Recognition.
  */
-//int scan_row = 350;
 int center_prev=-1;
 int center =-1;
 int border_left=0;
@@ -223,9 +221,9 @@ void recognize_line(const Mat& orig, line_data &myline,int scan_row)
 	
 	if(center_prev!=-1)
 	{
-		if(abs(border_right-border_right_prev)>80)
+		if(abs(border_right-border_right_prev)>65)
 		{
-			if(abs(border_left-border_left_prev)<20)
+			if(abs(border_left-border_left_prev)<30)
 			{
 				myline.stop_line = true;
 				border_right = border_right_prev + (border_left-border_left_prev);

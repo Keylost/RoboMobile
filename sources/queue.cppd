@@ -1,53 +1,8 @@
-
-template<typename T>
-void *garbage_collector_fnc(void *ptr)
-{
-	pthread_mutex_t &mutex_garbage = ((Queue<T> *)ptr)->mutex_garbage;
-	vector<Object<T> *> &garbage = ((Queue<T> *)ptr)->garbage;
-	
-	while(1)
-	{
-		sleep(1);
-		pthread_mutex_lock(&(mutex_garbage));
-		vector<Object<T> *> gcopy(garbage);
-		pthread_mutex_unlock(&(mutex_garbage));
-
-		int sz = gcopy.size();
-		for(int i=0;i<sz;i++)
-		{
-			if(gcopy[i]->useCount==0)
-			{
-				delete gcopy[i];
-				gcopy.erase(gcopy.begin()+i);
-				sz--;
-			}
-		}
-	
-		pthread_mutex_lock(&(mutex_garbage));
-		gcopy.swap(garbage);
-		pthread_mutex_unlock(&(mutex_garbage));
-	}
-	
-	return NULL;
-}
-
-template<typename T>
-void Queue<T>::add_to_garbage(Object<T> *eobj)
-{
-	pthread_mutex_lock(&(mutex_garbage));
-	garbage.push_back(eobj);
-	pthread_mutex_unlock(&(mutex_garbage));
-	return;
-}
-	
 template<typename T>
 Queue<T>::Queue()
 {
 	_obj = NULL;
-	mutex_garbage = PTHREAD_MUTEX_INITIALIZER;
 	_lock = PTHREAD_MUTEX_INITIALIZER;
-	pthread_t garbage_collector;
-	pthread_create(&garbage_collector, NULL, garbage_collector_fnc<T>, this);
 }
 
 template<typename T>
@@ -58,7 +13,6 @@ void Queue<T>::push(Object<T> *obj)
 	if(_obj!=NULL) _obj->free();
 	_obj = obj;
 	pthread_mutex_unlock(&(_lock));
-	add_to_garbage(obj);
 	return;
 }
 
@@ -101,6 +55,11 @@ Object<T>::~Object()
 template<typename T>
 void Object<T>::free()
 {
+	if(useCount==1)
+	{
+		delete this;
+		return;
+	}
 	pthread_mutex_lock(&(useLock));
 	useCount--;
 	pthread_mutex_unlock(&(useLock));
