@@ -124,7 +124,7 @@ void userLoop(line_data &myline, vector<sign_data> &Signs, Engine &engine)
 				{
 					signWeight = signWeightDefault;
 					engine.speed = speed_stop;
-					startHolding(4000,speed_stop); //сохранять указанную скорость движения 2000 миллисекунд
+					startHolding(4000,speed_stop); //сохранять указанную скорость движения 4000 миллисекунд
 				}
 				break;
 			};
@@ -143,7 +143,7 @@ void userLoop(line_data &myline, vector<sign_data> &Signs, Engine &engine)
 				{
 					signWeight = signWeightDefault;
 					engine.speed = speed_crosswalk;
-					startHolding(4000,speed_crosswalk); //сохранять указанную скорость движения 2000 миллисекунд
+					startHolding(2000,speed_crosswalk); //сохранять указанную скорость движения 2000 миллисекунд
 				}
 				break;
 			};
@@ -199,7 +199,7 @@ void userLoop(line_data &myline, vector<sign_data> &Signs, Engine &engine)
 void calcAngleAndSpeed(line_data &myline, Engine &engine)
 {
 	if(myline.on_line)
-	{	
+	{
 		if(stoplineInHandle)
 		{
 			timer_line.stop();

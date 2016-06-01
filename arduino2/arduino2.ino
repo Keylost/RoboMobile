@@ -123,7 +123,7 @@ void setup(void)
   turn_left_light = false;
   
   pinMode(encoder0PinA, INPUT); 
-  attachInterrupt(0, doEncoder, CHANGE); // encoder pin on interrupt 0 - pin 2 
+  attachInterrupt(1, doEncoder, CHANGE); // encoder pin on interrupt 0 - pin 2 
 }
 
 void turnsignal_illumination();

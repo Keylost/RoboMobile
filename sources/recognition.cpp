@@ -22,8 +22,9 @@ void recognize_sign(const Mat& frame)
 	vector<Vec4i> hierarchy;
 	simple_hist colors;
 	
-	equalizeHist(result, result);
-	Canny(result, result, 0, 255, 3);
+	//equalizeHist(result, result);
+	//Canny(result, result, 0, 255, 3);
+	adaptiveThreshold(result,result,255,ADAPTIVE_THRESH_GAUSSIAN_C,THRESH_BINARY,11,2); //это лучше, чем Канни:)
 	
 	findContours(result, contours, hierarchy, CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE, Point(0, 0) );
 	mysign.sign = sign_none;
