@@ -27,8 +27,10 @@ class System
 	private:
 	pthread_mutex_t engine_mutex = PTHREAD_MUTEX_INITIALIZER; //мутекс для контроля доступа к Engine
 	Engine engine; //содержит основные динамические параметры движения робота
-	pthread_mutex_t signs_mutex = PTHREAD_MUTEX_INITIALIZER; //мутекс для контроля доступа к Engine
+	pthread_mutex_t signs_mutex = PTHREAD_MUTEX_INITIALIZER; //мутекс для контроля доступа к Signs
 	vector<sign_data> Signs;
+	pthread_mutex_t barrier_mutex = PTHREAD_MUTEX_INITIALIZER; //мутекс для контроля доступа к Signs
+	bool barrier = false;
 	public:
 	void init();
 	
@@ -38,6 +40,8 @@ class System
 	void engine_set(Engine &source);
 	void signs_get(vector<sign_data> &destination);
 	void signs_set(vector<sign_data> &source);
+	void barrier_get(bool &destination);
+	void barrier_set(bool &source);
 	
 	Queue<Mat> queue; //очередь для кадров с видеокамеры
 	Queue<line_data> qline; //очередь для дзанных линии

@@ -235,3 +235,17 @@ void System::signs_set(vector<sign_data> &source)
 	Signs = source;
 	pthread_mutex_unlock(&(signs_mutex));
 }
+
+void System::barrier_get(bool &destination)
+{
+	pthread_mutex_lock(&(barrier_mutex));	
+	destination = barrier;
+	pthread_mutex_unlock(&(barrier_mutex));
+}
+
+void System::barrier_set(bool &source)
+{
+	pthread_mutex_lock(&(barrier_mutex));
+	barrier = source;
+	pthread_mutex_unlock(&(barrier_mutex));
+}

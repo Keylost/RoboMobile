@@ -26,6 +26,7 @@
 #define speed_min 450
 
 int Speed = 0,old_Speed=0; // Скорость в условных единицах
+long mvolts = 0; //входное напряжение
 float real_speed = 0; //реальная скорость в сантиметрах в секунду
 int DIR = 0;
 int Corner = 90,old_Corner = 0; // угол поворота в градусах
@@ -122,8 +123,12 @@ void setup(void)
   turn_right_light = false;
   turn_left_light = false;
   
+  //set up encoder start
   pinMode(encoder0PinA, INPUT); 
   attachInterrupt(1, doEncoder, CHANGE); // encoder pin on interrupt 0 - pin 2 
+  //set up encoder end
+
+  delay(100); //wait for system initialization
 }
 
 void turnsignal_illumination();
@@ -307,4 +312,3 @@ void doEncoder()
 {
   encoder0Pos++;
 }
-

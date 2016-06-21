@@ -5,15 +5,15 @@ sign_data mysign;
 
 
 /*
- * Функция recognize_sign() занимается распознаванием знаков на изображении
- * Входные данные:
- * Mat& orig - указатель на текущее обрабатываемое цветное(BGR) изображение, полученное с камеры.
+ * Функция recognize_sign() занимается распознаванием знаков на изображении.
+ * Все найденные знаки добавляются в @Signs.
  * 
- * Функция определяет, какой из знаков есть на изображении и заполняет поле mysign объекта класса Recognition.
- * Если на изображении несколько знаков, то обработан будет только первый попавшийся.
+ * Входные данные:
+ * @frame - ссылка на текущее обрабатываемое цветное(BGR) изображение
+ * 
  */
 
-void recognize_sign(const Mat& frame)
+void recognize_sign(const Mat &frame, vector<sign_data> &Signs)
 {
 	Mat result;
 	frame.copyTo(result);
@@ -24,25 +24,57 @@ void recognize_sign(const Mat& frame)
 	
 	//equalizeHist(result, result);
 	//Canny(result, result, 0, 255, 3);
-	adaptiveThreshold(result,result,255,ADAPTIVE_THRESH_GAUSSIAN_C,THRESH_BINARY,11,2); //это лучше, чем Канни:)
+	adaptiveThreshold(result,result,255,ADAPTIVE_THRESH_GAUSSIAN_C,THRESH_BINARY,11,2); //Привести изображение к чернобелому
 	
-	findContours(result, contours, hierarchy, CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE, Point(0, 0) );
+	/*
+	 * Привести контуры объектов к векторному виду и аппроксимировать
+	 * CV_CHAIN_APPROX_SIMPLE -сжимает горизонтальные, вертикальные и диагональные сегменты и оставляет только их конечные точки
+	 * CV_RETR_TREE - способ представления иерархии контуров hierarchy. CV_RETR_TREE - полная иерархия
+	 * Point(0, 0) - сдвиг точек контуров относительно изображения из которого было вырезано, то на котором мы ищем контуры(здесь не используется, поэтому 0)
+	 * result - чернобелое входное изображение
+	 * contours и hierarchy - структуры для хранения контуров и их иерархии соответсвенно
+	 */
+	findContours(result, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0) );
 	mysign.sign = sign_none;
 	mysign.state = greenlight;
 	vector<Point> approx;
 	
+	/*
+	 * Обойти в цикле все найденные на изображении контуры.
+	 */
 	for(size_t i=0;i<contours.size();i++)
 	{
-		approxPolyDP(Mat(contours[i]), approx, arcLength(Mat(contours[i]), true)*0.03, true); // Approximate contour with accuracy proportional	to the contour perimeter
+		/*
+		 * Апроксимировать контуры с точностью пропорциональной их периметру
+		 */
+		approxPolyDP(Mat(contours[i]), approx, arcLength(Mat(contours[i]), true)*0.03, true);
+		
+		/*
+		 * Вычислить площадь контура
+		 */
 		double area = fabs(contourArea((Mat)contours[i]));
-		if (area < 1000 || area > 10000|| !isContourConvex(approx)) // Skip small or non-convex objects
+		
+		/*
+		 * Игнорировать слишком маленькие и слишком большие объекты, а также незамкнутые контуры
+		 */
+		if (area < 1000 || area > 10000|| !isContourConvex(approx))
 			continue;
-
+		
+		/*
+		 * Выделить сегмент
+		 */
 		Rect boundingarea = boundingRect(approx);
 		Mat rr =  frame(boundingarea);
+		
+		/*
+		 * Посчитать количество точек определенных в simple_hist цветов внутри сегмента
+		 */
 		color_counter(rr,colors);
 		
-		if (approx.size() == 3)
+		/* Классифицировать сегменты по количеству углов, соотношению сторон и цветов 
+		 * approx.size() возвращает количество углов сегмента.
+		 */
+		if (approx.size() == 3) //уступи дорогу
 		{
 			if(colors.red<1000 || colors.white<500 || colors.blue>100 || colors.yellow>100 ||colors.red>2500)	continue;
 			LOG("[I]: Giveway sign found");
@@ -50,7 +82,7 @@ void recognize_sign(const Mat& frame)
 			mysign.sign = sign_giveway;
 		}
 		
-		else if (approx.size() == 4) // SING?
+		else if (approx.size() == 4) 
 		{
 			double dy,dx,l1,l2,l3,l4; 
 			dx =approx[1].x-approx[0].x; dy = approx[1].y-approx[0].y;
@@ -58,7 +90,7 @@ void recognize_sign(const Mat& frame)
 			dx = approx[2].x-approx[1].x; dy = approx[2].y-approx[1].y;
 			l2 = sqrt((dx*dx)+(dy*dy));
 			double dl = l2/l1;
-			if(dl>1.8&&dl<=2.2) //Traffic light
+			if(dl>1.8&&dl<=2.2) //трехцветный светофор
 			{
 				dx = approx[1].x - approx[0].x; dy = approx[3].y - approx[2].y;
 				l3 = sqrt((dx*dx) + (dy*dy));
@@ -75,7 +107,7 @@ void recognize_sign(const Mat& frame)
 					}
 				}
 			}
-			if(dl>=1.4&&dl<=1.8) //start traffic light
+			if(dl>=1.4&&dl<=1.8) //двухцветный светофор
 			{
 				dx = approx[1].x - approx[0].x; dy = approx[3].y - approx[2].y;
 				l3 = sqrt((dx*dx) + (dy*dy));
@@ -92,7 +124,7 @@ void recognize_sign(const Mat& frame)
 					}
 				}
 			}
-			else if(dl>=0.9&&dl<=1.1) //crosswalk
+			else if(dl>=0.9&&dl<=1.1)
 			{
 				dx = approx[1].x - approx[0].x; dy = approx[3].y - approx[2].y;
 				l3 = sqrt((dx*dx) + (dy*dy));
@@ -100,13 +132,13 @@ void recognize_sign(const Mat& frame)
 				l4 = sqrt((dx*dx) + (dy*dy));
 				if (abs(l4 - l2) < 0.1*l4 && abs(l3 - l1) < 0.1*l3)
 				{
-					if (colors.blue>area*0.5 && colors.blue<area*0.92 && colors.black>area*0.05 && colors.black<area*0.37 && colors.yellow<area*0.4)
+					if (colors.blue>area*0.5 && colors.blue<area*0.92 && colors.black>area*0.05 && colors.black<area*0.37 && colors.yellow<area*0.4) //пешеходный переход
 					{
 						mysign.sign = sign_crosswalk;
 						mysign.area = boundingarea;
 						LOG("[I]: Crosswalk found");
 					}
-					else if(colors.yellow>900 && colors.blue<area*0.1)
+					else if(colors.yellow>900 && colors.blue<area*0.1) //главная дорога
 					{
 						mysign.sign = sign_mainroad;
 						mysign.area = boundingarea;
@@ -116,9 +148,9 @@ void recognize_sign(const Mat& frame)
 			}
 		}
 
-		else if (approx.size() == 8 && area>4000) //STOP SIGN
+		else if (approx.size() == 8 && area>4000) //знак "стоп"
 		{
-			if(colors.red>1000) //check if it is really stop
+			if(colors.red>1000) //Проверить цветовые характеристики
 			{
 				mysign.sign = sign_stop;
 				mysign.area = boundingarea;
@@ -136,11 +168,11 @@ void recognize_sign(const Mat& frame)
 }
 
 /*
- * Функция recognize_line() занимается распознаванием черной линии и разметки на изображении
+ * Функция recognize_line() занимается распознаванием черной линии и разметки на изображении.
+ * Результат записывается в @myline
  * Входные данные:
- * Mat& orig - указатель на текущее обрабатываемое цветное(BGR) изображение, полученное с камеры.
- * 
- * Функция определяет наличие линии на изображении и заполняет поле myline объекта класса Recognition.
+ * @orig - указатель на текущее обрабатываемое цветное(BGR) изображение;
+ * @scan_row - номер строки матрицы изображения, по которой будет вестись поиск линии.
  */
 int center_prev=-1;
 int center =-1;
@@ -340,7 +372,7 @@ void* recognize_sign_fnc(void *ptr)
 		curObj = queue.waitForNewObject(curObj);
 		Mat frame = (*(curObj->obj))(signarea);	
 		
-		recognize_sign(frame);
+		recognize_sign(frame, Signs);
 		tm.stop();
 		spendTime = tm.get();
 		
@@ -423,6 +455,6 @@ uint8_t get_light(Mat& roi)
 	}
 	
 	if(rb>150 && rg>150 && gb<120 ) return redlight;
-	if(gb>100 && rb>100) return yellowlight;
+	if(gb>150 && rb>150) return yellowlight;
 	else return greenlight;
 }
