@@ -1,35 +1,6 @@
 #include "features.hpp"
 
 /*
- * Функция init() выполняет начальную инициализацию объекта класса fps_counter,
- * отвечающего за подсчет частоты кадров
- */
-void fps_counter::init()
-{
-      fps = 30;
-      if (counter == 0)
-      {
-          t.start();
-      }
-}
-
-/*
- * Функция get_fps() возращает частоту кадров
- * TODO: Функция работает несовсем корректно. Необходимо исправить 
- */
-double fps_counter::get_fps()
-{
-	t.stop();
-	counter++;
-	if (counter > 30)
-	fps = counter/(t.get()/1000);
-	// overflow protection
-	if (counter == (INT_MAX - 1000))
-		counter = 0;
-	return fps;
-}
-
-/*
  * Функция color_counter() возвращает число точек для каждого цвета описанного в @color на изображении @roi
  */
 void color_counter(Mat& roi, simple_hist &color)

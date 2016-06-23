@@ -14,4 +14,4 @@ using namespace std;
  * @myline - данные о положении линии
  * @Signs - список знаков, находящихся в поле зрения робота
  */
-void userLoop(line_data &myline, vector<sign_data> &Signs, Engine &engine);
+void userLoop(line_data &myline, vector<sign_data> &Signs, Engine &engine, bool barrier);

@@ -60,7 +60,7 @@ int get_signNum(signs sign,vector<sign_data> &Signs)
  * Функция  должна задавать параметры движения робота в engine.
  * Никогда не используйте sleep или usleep в этой функции
  */
-void userLoop(line_data &myline, vector<sign_data> &Signs, Engine &engine)
+void userLoop(line_data &myline, vector<sign_data> &Signs, Engine &engine, bool barrier)
 {
 	/*
 	 * Функция вычисляет скорость движения и угол поворота на основании данных
@@ -68,6 +68,15 @@ void userLoop(line_data &myline, vector<sign_data> &Signs, Engine &engine)
 	 */
 	
 	calcAngleAndSpeed(myline,engine);
+	
+	//test area
+	if(barrier)
+	{
+		printf("barrier\n");
+		engine.speed = 0;
+		startHolding(1000,0);
+	}
+	//test area
 	
 	if(hold)
 	{

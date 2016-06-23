@@ -12,7 +12,9 @@
 #include "signs.hpp" //объявляет структуры описывающие знаки и линию
 #include "queue.hpp" //объявляет функции взаимодействия с очередями 
 #include "userLoop.hpp" //объявляет функции расчета параметров движения робота
+
 #include "barrierRec.hpp" //объявляет функции распознавания препятствий
+#include "pedestrian.hpp" //объявляет функции распознавания пешеходов
 
 
 /*
@@ -35,6 +37,10 @@ int main(int argc, char **argv)
 	/*Создает поток распознавания препятствий*/
 	//pthread_t barrier_thr;
 	//pthread_create(&barrier_thr, NULL, barrier_fnc, &syst);
+	
+	/*Создает поток распознавания пешеходов*/
+	pthread_t recognize_ped_thr;
+	pthread_create(&recognize_ped_thr, NULL, recognize_ped_fnc, &syst);
 	
 	/*Создает поток распознавания знаков на изображении*/
 	pthread_t recognize_sign_thr;
@@ -60,6 +66,7 @@ int main(int argc, char **argv)
 	Queue<line_data> &qline = syst.qline;
 	Engine engine;
 	vector<sign_data> Signs;
+	bool ped_state = false;
 	
 	/*
 	 * Основной поток.
@@ -71,8 +78,9 @@ int main(int argc, char **argv)
 		curLineData = qline.waitForNewObject(curLineData); //получить информацию о положениии линии
 		syst.signs_get(Signs); //получить информацию о знаках дорожного движения, находящихся в поле зрения робота
 		syst.engine_get(engine); //получить текущие параметры движения робота
+		syst.barrier_get(ped_state);
 		
-		userLoop(*(curLineData->obj),Signs,engine);	//вызвать функцию расчета параметров движения робота
+		userLoop(*(curLineData->obj),Signs,engine,ped_state);	//вызвать функцию расчета параметров движения робота
 		
 		syst.engine_set(engine); //задать новые параметры движения робота
 		curLineData->free(); //освободить взятый из очереди объект

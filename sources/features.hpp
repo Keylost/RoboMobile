@@ -1,5 +1,4 @@
 #pragma once
-#include <limits.h> // to get INT_MAX, to protect against overflow
 #include <stdint.h>
 #include <time.h>
 #include <sys/types.h>
@@ -10,18 +9,6 @@
 
 using namespace cv;
 using namespace std;
-
-class fps_counter
-{
-private:
-    robotimer t;
-    int counter;
-    double sec;
-    double fps;
-public:
-    void init();
-    double get_fps();
-};
 
 struct simple_hist
 {
