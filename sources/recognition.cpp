@@ -89,7 +89,13 @@ void recognize_sign(const Mat &frame, vector<sign_data> &Signs)
 			l1 = sqrt((dx*dx)+(dy*dy));
 			dx = approx[2].x-approx[1].x; dy = approx[2].y-approx[1].y;
 			l2 = sqrt((dx*dx)+(dy*dy));
-			double dl = l2/l1;
+			double dl =0;
+			if(l2>l1)
+				dl = l2/l1;
+			else
+				dl = l1/l2;	
+			
+			
 			if(dl>1.8&&dl<=2.2) //трехцветный светофор
 			{
 				dx = approx[1].x - approx[0].x; dy = approx[3].y - approx[2].y;
@@ -132,7 +138,7 @@ void recognize_sign(const Mat &frame, vector<sign_data> &Signs)
 				l4 = sqrt((dx*dx) + (dy*dy));
 				if (abs(l4 - l2) < 0.1*l4 && abs(l3 - l1) < 0.1*l3)
 				{
-					if (colors.blue>area*0.5 && colors.blue<area*0.92 && colors.black>area*0.05 && colors.black<area*0.37 && colors.yellow<area*0.4) //пешеходный переход
+					if (colors.blue>area*0.5 && colors.blue<area*0.92 && colors.black>area*0.05 && colors.black<area*0.37 && colors.yellow<area*0.15) //пешеходный переход
 					{
 						mysign.sign = sign_crosswalk;
 						mysign.area = boundingarea;
@@ -408,7 +414,7 @@ void* recognize_sign_fnc(void *ptr)
 			
 			SignsGlobal[i].detect_time += spendTime;
 			//удалить устаревшие данные
-			if(SignsGlobal[i].detect_time>1000)
+			if(SignsGlobal[i].detect_time>300)
 			{
 				SignsGlobal.erase(SignsGlobal.begin()+i);
 			}

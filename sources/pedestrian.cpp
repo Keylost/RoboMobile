@@ -42,7 +42,7 @@ void recognize_ped(Mat &frame, bool &ped_state)
 		/*
 		 * Игнорировать слишком маленькие и слишком большие объекты, а также незамкнутые контуры
 		 */
-		if (area < 15000 || area > 100000 || !isContourConvex(approx))
+		if (area < 3000 || area > 100000 || !isContourConvex(approx))
 			continue;
 		
 		/* Классифицировать сегменты по количеству углов, соотношению сторон и цветов 
@@ -81,7 +81,7 @@ void recognize_ped(Mat &frame, bool &ped_state)
 					*/
 					color_counter(rr,colors);
 					
-					if (colors.white>area*0.5 && colors.black>area*0.35) //пешеход
+					if (colors.white>area*0.3 && colors.black>area*0.3) //пешеход
 					{
 						ped_state = true;
 						LOG("[I]: Pedestrian found");

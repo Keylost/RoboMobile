@@ -25,7 +25,7 @@
  */
 int main(int argc, char **argv)
 {
-	System syst;	
+	System syst;
 	syst.init(); //Загрузить конфигурацию из файла config.conf
 	
 	CLP::parse(argc,argv,syst); //Получить параметры командной строки
