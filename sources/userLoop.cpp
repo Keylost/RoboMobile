@@ -7,7 +7,7 @@
 
 #define ANGLE_CENTER  			90 //угол сервомотора, при котором колеса робота смотрят прямо
 #define ANGLE_RANGE  			35 //максимальное отклонение сервомотора от центрального положения
-#define MAX_SPEED  				990 //максимальная скорость движения в условных единицах (от 0 до 999)
+#define MAX_SPEED  				950 //максимальная скорость движения в условных единицах (от 0 до 999)
 #define MIN_SPEED  				450 //минимальная скорость движения в условных единицах (от 0 до 999)
 #define ANGLE_MIN  				(ANGLE_CENTER - ANGLE_RANGE)
 #define ANGLE_MAX  				(ANGLE_CENTER + ANGLE_RANGE)
@@ -74,7 +74,7 @@ void userLoop(line_data &myline, vector<sign_data> &Signs, Engine &engine, bool 
 	{
 		printf("barrier\n");
 		engine.speed = 0;
-		startHolding(1000,0);
+		startHolding(500,0);
 	}
 	//test area
 	

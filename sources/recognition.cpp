@@ -144,12 +144,14 @@ void recognize_sign(const Mat &frame, vector<sign_data> &Signs)
 						mysign.area = boundingarea;
 						LOG("[I]: Crosswalk found");
 					}
+					/*
 					else if(colors.yellow>900 && colors.blue<area*0.1) //главная дорога
 					{
 						mysign.sign = sign_mainroad;
 						mysign.area = boundingarea;
 						LOG("[I]: Mainroad sign found");
 					}
+					*/
 				}
 			}
 		}

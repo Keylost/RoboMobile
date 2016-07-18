@@ -2,101 +2,111 @@
 
 bool ped_state;
 
-void recognize_ped(Mat &frame, bool &ped_state)
+vector<Point> pedTempl;
+
+
+void rec_ped(Mat &frame, bool &ped_state)
 {
-	Mat result;
-	frame.copyTo(result);
-	cvtColor(result,result,CV_BGR2GRAY);
-	vector<vector<Point> > contours;
-	vector<Vec4i> hierarchy;
-	simple_hist colors;
-	vector<Point> approx;
+	int32_t r,g,b;
+	uint8_t *row,*bin;
+	ped_state = false;
 	
-	adaptiveThreshold(result,result,255,ADAPTIVE_THRESH_GAUSSIAN_C,THRESH_BINARY,11,2); //Привести изображение к чернобелому
+	Mat binary(frame.rows, frame.cols, CV_8UC1);
 	
-	/*
-	 * Привести контуры объектов к векторному виду и аппроксимировать
-	 * CV_CHAIN_APPROX_SIMPLE -сжимает горизонтальные, вертикальные и диагональные сегменты и оставляет только их конечные точки
-	 * CV_RETR_TREE - способ представления иерархии контуров hierarchy. CV_RETR_TREE - полная иерархия
-	 * Point(0, 0) - сдвиг точек контуров относительно изображения из которого было вырезано, то на котором мы ищем контуры(здесь не используется, поэтому 0)
-	 * result - чернобелое входное изображение
-	 * contours и hierarchy - структуры для хранения контуров и их иерархии соответсвенно
-	 */
-	findContours(result, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0) );
-	
-	/*
-	 * Обойти в цикле все найденные на изображении контуры.
-	 */
-	for(size_t i=0;i<contours.size();i++)
+	for(int32_t rows=0;rows<frame.rows;rows++)
 	{
-		/*
-		 * Апроксимировать контуры с точностью пропорциональной их периметру
-		 */
-		approxPolyDP(Mat(contours[i]), approx, arcLength(Mat(contours[i]), true)*0.03, true);
-		
-		/*
-		 * Вычислить площадь контура
-		 */
-		double area = fabs(contourArea((Mat)contours[i]));
-		
-		/*
-		 * Игнорировать слишком маленькие и слишком большие объекты, а также незамкнутые контуры
-		 */
-		if (area < 3000 || area > 100000 || !isContourConvex(approx))
-			continue;
-		
-		/* Классифицировать сегменты по количеству углов, соотношению сторон и цветов 
-		 * approx.size() возвращает количество углов сегмента.
-		 */
-		if (approx.size() == 4) 
+		row = (uint8_t*)frame.ptr<uint8_t>(rows);
+		bin = (uint8_t*)binary.ptr<uint8_t>(rows);
+		for(int32_t col=0;col<frame.cols;col++)
 		{
-			double dy,dx,l1,l2,l3,l4; 
-			dx =approx[1].x-approx[0].x; dy = approx[1].y-approx[0].y;
-			l1 = sqrt((dx*dx)+(dy*dy));
-			dx = approx[2].x-approx[1].x; dy = approx[2].y-approx[1].y;
-			l2 = sqrt((dx*dx)+(dy*dy));
-			double dl =0;
-			if(l2>l1)
-				dl = l2/l1;
-			else
-				dl = l1/l2;			
-			
-			if(dl>=1.63&&dl<=1.95)
+			b=row[col*3];g=row[col*3+1];r=row[col*3+2];
+			if((b<=100 && abs(b-g)<25 && abs(b-r)<25 && abs(r-g)<25))
 			{
-				dx = approx[1].x - approx[0].x; dy = approx[3].y - approx[2].y;
-				l3 = sqrt((dx*dx) + (dy*dy));
-				dx = approx[2].x - approx[1].x; dy = approx[3].y - approx[4].y;
-				l4 = sqrt((dx*dx) + (dy*dy));
-				if (abs(l4 - l2) < 0.1*l4 && abs(l3 - l1) < 0.1*l3)
-				{
-					
-					/*
-					* Выделить сегмент
-					*/
-					Rect boundingarea = boundingRect(approx);
-					Mat rr =  frame(boundingarea);
-					
-					/*
-					* Посчитать количество точек определенных в simple_hist цветов внутри сегмента
-					*/
-					color_counter(rr,colors);
-					
-					if (colors.white>area*0.3 && colors.black>area*0.3) //пешеход
-					{
-						ped_state = true;
-						LOG("[I]: Pedestrian found");
-						return;
-					}
-				}
+				bin[col] = 255;
+				//printf("hare\n");
+			}
+			else
+			{
+				bin[col] = 0;
 			}
 		}
 	}
-	ped_state = false;
+	
+	vector<vector<Point> > contours;
+	vector<Vec4i> hierarchy;
+	findContours(binary, contours, RETR_LIST, CHAIN_APPROX_SIMPLE);
+	
+	
+	for( size_t i = 0; i < contours.size(); i++ )
+	{
+		double area = fabs(contourArea(Mat(contours[i])));
+		if(area > 2000 && area < 15000)
+		{
+			Rect boundingarea = boundingRect(contours[i]);
+			Mat segm =  frame(boundingarea);
+			
+			double level = matchShapes(contours[i], pedTempl, CV_CONTOURS_MATCH_I1,0);
+			
+			//printf("level: %f\n", level);
+			if(level<0.18)
+			{
+				ped_state = true;
+				return;
+			}
+			//drawContours( frame, contours, i, Scalar(0,255,0), 2, 8, hierarchy, 0, Point() );
+		}
+	}
+	
 	return;
 }
 
+
+
+void getTempl()
+{
+	Mat frame = imread("ped.png",1);
+	int32_t r,g,b;
+	uint8_t *row,*bin;
+	
+	Mat binary(frame.rows, frame.cols, CV_8UC1);
+	
+	for(int32_t rows=0;rows<frame.rows;rows++)
+	{
+		row = (uint8_t*)frame.ptr<uint8_t>(rows);
+		bin = (uint8_t*)binary.ptr<uint8_t>(rows);
+		for(int32_t col=0;col<frame.cols;col++)
+		{
+			b=row[col*3];g=row[col*3+1];r=row[col*3+2];
+			if((b<=100 && abs(b-g)<25 && abs(b-r)<25 && abs(r-g)<25))
+			{
+				bin[col] = 255;
+				//printf("hare\n");
+			}
+			else
+			{
+				bin[col] = 0;
+			}
+		}
+	}
+	vector<vector<Point> > contours;
+	findContours(binary, contours, RETR_LIST, CHAIN_APPROX_SIMPLE);
+	
+	if(contours.size()==1)
+	{
+		pedTempl = contours[0];
+	}
+	else
+	{
+		printf("what??\n");
+		exit(0);
+	}
+}
+
+
+
 void* recognize_ped_fnc(void *ptr)
 {
+	getTempl();
 	ped_state = false;
 	robotimer tm;
 	long spendTime = 0;
@@ -105,15 +115,49 @@ void* recognize_ped_fnc(void *ptr)
 	Object<Mat> *curObj = NULL;
 	Queue<Mat> &queue = syst.queue;
 	
+	vector<sign_data> Signs;
+	int last_seen = 10000;
+	bool fls = false;
+	bool tr = true;
+	
 	while(1)
 	{
 		tm.start();
-		curObj = queue.waitForNewObject(curObj);	
-		
-		recognize_ped(*(curObj->obj), ped_state);
+		curObj = queue.waitForNewObject(curObj);		
+		rec_ped(*(curObj->obj), ped_state);
 		tm.stop();
 		spendTime = tm.get();
-		syst.barrier_set(ped_state);
+		
+		if(ped_state == true)
+		{
+			syst.signs_get(Signs);
+			unsigned i=0;
+			for(;i<Signs.size();i++)
+			{
+				if(Signs[i].sign == sign_crosswalk) break;
+			}
+			if(i==Signs.size()) ped_state = false;
+		}
+		
+		if(ped_state == true)
+		{
+			last_seen = 0;
+		}
+		else
+		{
+			last_seen += spendTime;
+		}
+		
+		if(last_seen>1000)
+		{
+			 
+			syst.barrier_set(fls);
+			last_seen = 10000;			
+		}
+		else
+		{
+			syst.barrier_set(tr);
+		}
 		
 		curObj->free();
 	}
