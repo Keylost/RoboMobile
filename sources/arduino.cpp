@@ -78,6 +78,53 @@ bool Arduino_ctrl::isconnected()
  */
 Arduino_ctrl::Arduino_ctrl(System &syst)
 {
+	
+	/*
+	bool connect()
+	int fd = 0; //дескриптор устройства
+	fd = open(syst.arduino_port, O_RDWR | O_NOCTTY | O_NDELAY); // Открывает последовательный порт
+	if(fd<0) //произошла ошибка при открытии порта
+	{
+		return false;
+	}
+	
+	struct termios options; //структура содержащая настройки порта
+	tcgetattr(fd, &options); //считать текущие настройки порта
+	
+	//установить скорость соединения (115200 бодов в секунду)
+	cfsetispeed(&options, B115200); 
+	cfsetospeed(&options, B115200);
+	options.c_cflag &= ~PARENB; //выключить проверку четности
+	options.c_cflag &= ~CSTOPB; //1 стопбит
+	options.c_cflag &= ~CSIZE; //выключение битовой маски
+	options.c_cflag |= CS8; //режим: 8 бит
+	options.c_cflag |= ( CLOCAL | CREAD );
+	fcntl(port->fd, F_SETFL, FNDELAY); //0
+	
+	tcsetattr(fd, TCSANOW, &options); //применить новые настройки порта
+	tcflush(port->fd, TCIOFLUSH);
+	
+	return true;
+	*/
+	
+	/*
+	bool disconnect()
+	close(fd); //закрыть соединение
+	*/
+	
+	/*
+	запись данных в порт
+	bool send(const char *buffer, size_t size)
+	int bytes_written = write(fd, buffer, size);
+	ioctl(port->fd, TCSBRK, 1);
+	*/
+	
+	/*
+	чтение данных из порта
+	bool read(char *buffer, size_t size)
+	read(port->fd, buffer, size);
+	*/
+	
     port = osal_serial_port_open(syst.arduino_port,115200, OSAL_SERIAL_MODE_8N1);
     if (!port)
     {
