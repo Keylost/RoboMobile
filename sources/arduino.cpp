@@ -1,34 +1,76 @@
 #include "arduino.hpp"
 
+bool ArduinoCtrl::connect(const char* arduinoPort)
+{	
+	arduino_fd = open(arduinoPort, O_RDWR | O_NOCTTY | O_NDELAY); // Открывает последовательный порт
+	if(arduino_fd<0) //произошла ошибка при открытии порта
+	{
+		return false;
+	}
+	
+	struct termios options; //структура содержащая настройки порта
+	tcgetattr(arduino_fd, &options); //считать текущие настройки порта
+	
+	//установить скорость соединения (115200 бодов в секунду)
+	cfsetispeed(&options, B115200); 
+	cfsetospeed(&options, B115200);
+	options.c_cflag &= ~PARENB; //выключить проверку четности
+	options.c_cflag &= ~CSTOPB; //1 стопбит
+	options.c_cflag &= ~CSIZE; //выключение битовой маски
+	options.c_cflag |= CS8; //режим: 8 бит
+	options.c_cflag |= ( CLOCAL | CREAD );
+	fcntl(arduino_fd, F_SETFL, FNDELAY); //0
+	
+	tcsetattr(arduino_fd, TCSANOW, &options); //применить новые настройки порта
+	tcflush(arduino_fd, TCIOFLUSH);
+	
+	return true;
+}
+
+bool ArduinoCtrl::disconnect()
+{
+	if(close(arduino_fd)==0) //закрыть соединение
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
 
 /*
  * Функция deinit() закрывает соединение с микроконтроллером.
  */
-void Arduino_ctrl::deinit()
+void ArduinoCtrl::deinit()
 {
-    if (port) 
-    {
-    	osal_serial_port_close(port);
-    	connect = false;
-    }
+	if(connectionStatus)
+	{
+		if(disconnect())
+		{
+			connectionStatus = false;
+		}
+	}
+	
+	return;
 }
 
 /*
  * Обеспечивает обратную связь с Arduino
  * В частности получает реальную скорость движения робота от arduino
  */
-int Arduino_ctrl::feedback()
+int ArduinoCtrl::feedback()
 {
 	char buffer[10];
-	char current;
-	int sz =  osal_serial_port_read(port,&current,1);
+	char current;	
+	int sz =  read(arduino_fd, &current,1);
 	if(sz>0 && current=='F')
 	{
 		int i=0;
 		bool end_flag = false;
 		for(; !end_flag;i++)
 		{
-			while(osal_serial_port_read(port,&current,1)!=1);
+			while(read(arduino_fd, &current,1)!=1);
 			if(current!='E')
 			{
 				buffer[i] = current;
@@ -51,15 +93,17 @@ int Arduino_ctrl::feedback()
  * Функция send_command() отправляет параметры движения робота на микроконтроллер.
  * @engine - структура содержащая основные параметры движения робота
  */
-void Arduino_ctrl::send_command(Engine* engine)
+void ArduinoCtrl::sendCommand(Engine* engine)
 {
-	if (port) 
-	{		
-		snprintf(message, sizeof(message), "SPD %d,%d,%d ",
-				engine->angle,
-				engine->direction, engine->speed);
-		osal_serial_port_write(port, message, strlen(message));
+	snprintf(message, sizeof(message), "SPD %d,%d,%d ", engine->angle, engine->direction, engine->speed);
+	int sz = strlen(message);
+	int bytes_written = write(arduino_fd, message, sz);
+	if(bytes_written<sz)
+	{
+		LOG("[E]: Arduino: Sending data error");
 	}
+	ioctl(arduino_fd, TCSBRK, 1);
+	return;
 }
 
 /*
@@ -67,73 +111,27 @@ void Arduino_ctrl::send_command(Engine* engine)
  * Возвращаемые значения:
  * "истина", если соединение открыто, "ложь" в ином случае
  */
-bool Arduino_ctrl::isconnected()
+bool ArduinoCtrl::isConnected()
 {
-	return connect;
+	return connectionStatus;
 }
 
 /*
- * Конструктор класса Arduino_ctrl.
+ * Конструктор класса ArduinoCtrl.
  * Отвечает за корректное создание объекта класса и открытие соединения с микроконтроллером.
  */
-Arduino_ctrl::Arduino_ctrl(System &syst)
+ArduinoCtrl::ArduinoCtrl(System &syst)
 {
+	arduino_fd = -1;
 	
-	/*
-	bool connect()
-	int fd = 0; //дескриптор устройства
-	fd = open(syst.arduino_port, O_RDWR | O_NOCTTY | O_NDELAY); // Открывает последовательный порт
-	if(fd<0) //произошла ошибка при открытии порта
+	if(connect(syst.arduino_port))
 	{
-		return false;
+		connectionStatus = true;
 	}
-	
-	struct termios options; //структура содержащая настройки порта
-	tcgetattr(fd, &options); //считать текущие настройки порта
-	
-	//установить скорость соединения (115200 бодов в секунду)
-	cfsetispeed(&options, B115200); 
-	cfsetospeed(&options, B115200);
-	options.c_cflag &= ~PARENB; //выключить проверку четности
-	options.c_cflag &= ~CSTOPB; //1 стопбит
-	options.c_cflag &= ~CSIZE; //выключение битовой маски
-	options.c_cflag |= CS8; //режим: 8 бит
-	options.c_cflag |= ( CLOCAL | CREAD );
-	fcntl(port->fd, F_SETFL, FNDELAY); //0
-	
-	tcsetattr(fd, TCSANOW, &options); //применить новые настройки порта
-	tcflush(port->fd, TCIOFLUSH);
-	
-	return true;
-	*/
-	
-	/*
-	bool disconnect()
-	close(fd); //закрыть соединение
-	*/
-	
-	/*
-	запись данных в порт
-	bool send(const char *buffer, size_t size)
-	int bytes_written = write(fd, buffer, size);
-	ioctl(port->fd, TCSBRK, 1);
-	*/
-	
-	/*
-	чтение данных из порта
-	bool read(char *buffer, size_t size)
-	read(port->fd, buffer, size);
-	*/
-	
-    port = osal_serial_port_open(syst.arduino_port,115200, OSAL_SERIAL_MODE_8N1);
-    if (!port)
-    {
-    	LOG("[E]: Can't open serial port");
-    	connect = false;
-    }
-    else
-    {
-		connect = true;
+	else
+	{
+		LOG("[E]: Can't open serial port");
+		connectionStatus = false;
 	}
 }
 
@@ -146,17 +144,17 @@ void* arduino_fnc(void *ptr)
 {
 	System &syst = *((System *)ptr);
 	Engine eng; //локальная копия Engine
-	Arduino_ctrl controller(syst);
-	if(!controller.isconnected())
+	ArduinoCtrl controller(syst);
+	if(!controller.isConnected())
 	{
-		LOG("[W]: Arduino isn't attached. The robot willn't move.");
+		LOG("[W]: Arduino isn't attached.");
 		return NULL;
 	}
 	
 	while(1)
 	{
 		syst.engine_get(eng);
-		controller.send_command(&eng);
+		controller.sendCommand(&eng);
 		int spd=controller.feedback();
 		if(spd!=-1) eng.real_speed = spd;
 		syst.engine_set_realSpeed(eng.real_speed);

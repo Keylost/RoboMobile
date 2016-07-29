@@ -1,24 +1,32 @@
 #pragma once
-#include "osal/osal_serial_port.h"
+//#include "osal/osal_serial_port.h"
 #include "logger.hpp"
 #include "Engine.hpp"
 #include <unistd.h>
 #include <string.h>
 #include <pthread.h>
 #include "config.hpp"
+#include <fcntl.h>
+#include <termios.h>
+#include <sys/ioctl.h>
 
-class Arduino_ctrl
+class ArduinoCtrl
 {
 protected:	
-OsalSerialPort *port;
+//OsalSerialPort *port;
+int arduino_fd; //дескриптор устройства
 char message[128];
-bool connect;
+bool connectionStatus;
+
+bool connect(const char* arduinoPort);
+bool disconnect();
+
 public:
-Arduino_ctrl(System &syst);
+ArduinoCtrl(System &syst);
 int feedback();
-void send_command(Engine* engine);
+void sendCommand(Engine* engine);
 void deinit();
-bool isconnected();
+bool isConnected();
 };
 
 void* arduino_fnc(void *ptr);
