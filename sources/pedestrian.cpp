@@ -48,7 +48,7 @@ void rec_ped(Mat &frame, bool &ped_state)
 			double level = matchShapes(contours[i], pedTempl, CV_CONTOURS_MATCH_I1,0);
 			
 			//printf("level: %f\n", level);
-			if(level<0.18)
+			if(level<0.3)
 			{
 				ped_state = true;
 				return;

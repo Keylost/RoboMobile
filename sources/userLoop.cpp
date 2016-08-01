@@ -7,11 +7,11 @@
 
 #define ANGLE_CENTER  			90 //угол сервомотора, при котором колеса робота смотрят прямо
 #define ANGLE_RANGE  			35 //максимальное отклонение сервомотора от центрального положения
-#define MAX_SPEED  				950 //максимальная скорость движения в условных единицах (от 0 до 999)
-#define MIN_SPEED  				450 //минимальная скорость движения в условных единицах (от 0 до 999)
+#define MAX_SPEED  				840 //максимальная скорость движения в условных единицах (от 0 до 999)
+#define MIN_SPEED  				640 //минимальная скорость движения в условных единицах (от 0 до 999)
 #define ANGLE_MIN  				(ANGLE_CENTER - ANGLE_RANGE)
 #define ANGLE_MAX  				(ANGLE_CENTER + ANGLE_RANGE)
-#define speed_crosswalk 		MIN_SPEED //скорость при обнаружении пешеходного перехода
+#define speed_crosswalk 		450 //скорость при обнаружении пешеходного перехода
 #define speed_stop      		0 //скорость при обнаружении знака стоп
 #define speed_trafficlight		0 //скорость при обнаружении желтого или красного сигнала светофора
 
@@ -105,12 +105,16 @@ void userLoop(line_data &myline, vector<sign_data> &Signs, Engine &engine, bool 
 					{
 						in_handle = current;
 					}
+					if(current  == sign_starttrafficlight)
+					{
+						in_handle = current;
+					}
 				}
 				else
-				{					
+				{
 					in_handle = current;
 				}
-			}			
+			}
 		}
 		switch(in_handle)
 		{
@@ -212,7 +216,7 @@ void calcAngleAndSpeed(line_data &myline, Engine &engine)
 		if(stoplineInHandle)
 		{
 			timer_line.stop();
-			if(timer_line.get()<=1500)
+			if(timer_line.get()<=100)
 			{
 				engine.speed=MIN_SPEED;
 				//return;

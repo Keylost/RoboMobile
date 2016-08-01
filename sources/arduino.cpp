@@ -19,7 +19,7 @@ bool ArduinoCtrl::connect(const char* arduinoPort)
 	options.c_cflag &= ~CSIZE; //выключение битовой маски
 	options.c_cflag |= CS8; //режим: 8 бит
 	options.c_cflag |= ( CLOCAL | CREAD );
-	fcntl(arduino_fd, F_SETFL, FNDELAY); //0
+	//fcntl(arduino_fd, F_SETFL, FNDELAY); //0
 	
 	tcsetattr(arduino_fd, TCSANOW, &options); //применить новые настройки порта
 	tcflush(arduino_fd, TCIOFLUSH);
@@ -81,10 +81,9 @@ int ArduinoCtrl::feedback()
 			}
 		}
 		buffer[i+1] = '\0';
-		printf("buffer %d\n",atoi(buffer));
+		//printf("buffer %f %d\n",atof(buffer),atoi(buffer));
 		return atoi(buffer);
 	}
-	
 	
 	return -1;
 }

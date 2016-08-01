@@ -57,7 +57,7 @@ void recognize_sign(const Mat &frame, vector<sign_data> &Signs)
 		/*
 		 * Игнорировать слишком маленькие и слишком большие объекты, а также незамкнутые контуры
 		 */
-		if (area < 1000 || area > 10000|| !isContourConvex(approx))
+		if (area < 700 || area > 10000|| !isContourConvex(approx))
 			continue;
 		
 		/*
@@ -76,10 +76,10 @@ void recognize_sign(const Mat &frame, vector<sign_data> &Signs)
 		 */
 		if (approx.size() == 3) //уступи дорогу
 		{
-			if(colors.red<1000 || colors.white<500 || colors.blue>100 || colors.yellow>100 ||colors.red>2500)	continue;
-			LOG("[I]: Giveway sign found");
-			mysign.area = boundingarea;
-			mysign.sign = sign_giveway;
+			//if(colors.red<1000 || colors.white<500 || colors.blue>100 || colors.yellow>100 ||colors.red>2500)	continue;
+			//LOG("[I]: Giveway sign found");
+			//mysign.area = boundingarea;
+			//mysign.sign = sign_giveway;
 		}
 		
 		else if (approx.size() == 4) 
@@ -93,10 +93,10 @@ void recognize_sign(const Mat &frame, vector<sign_data> &Signs)
 			if(l2>l1)
 				dl = l2/l1;
 			else
-				dl = l1/l2;	
+				dl = l1/l2;
 			
 			
-			if(dl>1.8&&dl<=2.2) //трехцветный светофор
+			if(dl>=1.75&&dl<=2.25 && area<2400) //трехцветный светофор
 			{
 				dx = approx[1].x - approx[0].x; dy = approx[3].y - approx[2].y;
 				l3 = sqrt((dx*dx) + (dy*dy));
@@ -106,6 +106,7 @@ void recognize_sign(const Mat &frame, vector<sign_data> &Signs)
 				{
 					if (colors.black>area*0.4 && colors.black < area*0.9)
 					{
+						printf("area: %f\n",area);
 						LOG("[I]: Traffic light found");
 						mysign.area = boundingarea;
 						mysign.sign = sign_trafficlight;
@@ -113,7 +114,7 @@ void recognize_sign(const Mat &frame, vector<sign_data> &Signs)
 					}
 				}
 			}
-			if(dl>=1.4&&dl<=1.8) //двухцветный светофор
+			if(dl>=1.4&&dl<=1.65 && area > 2300 && area <5600) //двухцветный светофор
 			{
 				dx = approx[1].x - approx[0].x; dy = approx[3].y - approx[2].y;
 				l3 = sqrt((dx*dx) + (dy*dy));
@@ -123,6 +124,7 @@ void recognize_sign(const Mat &frame, vector<sign_data> &Signs)
 				{
 					if (colors.black>area*0.4 && colors.black < area*0.9)
 					{
+						//printf("area: %f\n", area);
 						LOG("[I]: Start raffic light found");
 						mysign.area = boundingarea;
 						mysign.sign = sign_starttrafficlight;
@@ -130,7 +132,7 @@ void recognize_sign(const Mat &frame, vector<sign_data> &Signs)
 					}
 				}
 			}
-			else if(dl>=0.9&&dl<=1.1)
+			else if(dl>=0.85&&dl<=1.15)
 			{
 				dx = approx[1].x - approx[0].x; dy = approx[3].y - approx[2].y;
 				l3 = sqrt((dx*dx) + (dy*dy));
@@ -156,7 +158,7 @@ void recognize_sign(const Mat &frame, vector<sign_data> &Signs)
 			}
 		}
 
-		else if (approx.size() == 8 && area>4000) //знак "стоп"
+		else if (approx.size() == 8 && area>3000) //знак "стоп"
 		{
 			if(colors.red>1000) //Проверить цветовые характеристики
 			{
