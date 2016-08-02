@@ -186,7 +186,7 @@ void serial_send_data()
   //отправить последовательность байт по COM порту
   //отправить реальную скорость
   //unsigned int - 2 байта
-  real_speed = encoder0Pos*1.3;
+  real_speed = encoder0Pos*0.65;
   encoder0Pos=0;
   last_speed_update = millis();
    Serial1.print('F');

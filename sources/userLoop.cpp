@@ -7,8 +7,8 @@
 
 #define ANGLE_CENTER  			90 //угол сервомотора, при котором колеса робота смотрят прямо
 #define ANGLE_RANGE  			35 //максимальное отклонение сервомотора от центрального положения
-#define MAX_SPEED  				840 //максимальная скорость движения в условных единицах (от 0 до 999)
-#define MIN_SPEED  				640 //минимальная скорость движения в условных единицах (от 0 до 999)
+#define MAX_SPEED  				990 //максимальная скорость движения в условных единицах (от 0 до 999)
+#define MIN_SPEED  				600 //минимальная скорость движения в условных единицах (от 0 до 999)
 #define ANGLE_MIN  				(ANGLE_CENTER - ANGLE_RANGE)
 #define ANGLE_MAX  				(ANGLE_CENTER + ANGLE_RANGE)
 #define speed_crosswalk 		450 //скорость при обнаружении пешеходного перехода
@@ -216,7 +216,7 @@ void calcAngleAndSpeed(line_data &myline, Engine &engine)
 		if(stoplineInHandle)
 		{
 			timer_line.stop();
-			if(timer_line.get()<=100)
+			if(timer_line.get()<=500)
 			{
 				engine.speed=MIN_SPEED;
 				//return;

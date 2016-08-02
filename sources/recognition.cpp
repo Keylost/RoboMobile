@@ -283,7 +283,7 @@ void recognize_line(const Mat& orig, line_data &myline,int scan_row)
 		}
 		else if(abs(border_left-border_left_prev)>40)
 		{
-			border_left = border_left_prev + (border_right-border_right_prev);
+			border_left = border_left_prev;// + (border_right-border_right_prev);
 			center = (border_left+border_right)/2;
 			printf("crossroad \n");
 			crossroad = true;
