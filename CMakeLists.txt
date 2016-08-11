@@ -24,9 +24,6 @@ include_directories(
 	${OpenCV_INCLUDES}
 )
 
-# use, i.e. don't skip the full RPATH for the build tree
-# SET(CMAKE_SKIP_BUILD_RPATH TRUE)
-
 add_executable(${PROJECT} ${SOURCES})
 
 target_link_libraries(${PROJECT}
