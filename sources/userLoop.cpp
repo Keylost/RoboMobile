@@ -7,11 +7,11 @@
 
 #define ANGLE_CENTER  			90 //угол сервомотора, при котором колеса робота смотрят прямо
 #define ANGLE_RANGE  			35 //максимальное отклонение сервомотора от центрального положения
-#define MAX_SPEED  				990 //максимальная скорость движения в условных единицах (от 0 до 999)
-#define MIN_SPEED  				600 //минимальная скорость движения в условных единицах (от 0 до 999)
+#define MAX_SPEED  				700 //максимальная скорость движения в условных единицах (от 0 до 999)
+#define MIN_SPEED  				500 //минимальная скорость движения в условных единицах (от 0 до 999)
 #define ANGLE_MIN  				(ANGLE_CENTER - ANGLE_RANGE)
 #define ANGLE_MAX  				(ANGLE_CENTER + ANGLE_RANGE)
-#define speed_crosswalk 		450 //скорость при обнаружении пешеходного перехода
+#define speed_crosswalk 		500 //скорость при обнаружении пешеходного перехода
 #define speed_stop      		0 //скорость при обнаружении знака стоп
 #define speed_trafficlight		0 //скорость при обнаружении желтого или красного сигнала светофора
 
@@ -99,15 +99,11 @@ void userLoop(line_data &myline, vector<sign_data> &Signs, Engine &engine, bool 
 			signs current = getMaxPrioritySign(Signs);
 			if(current!=sign_none)
 			{
-				if(current == sign_trafficlight || current == sign_starttrafficlight)
+				if(current == sign_trafficlight_red || current == sign_trafficlight_yellow)
 				{
 					if(stoplineInHandle)
 					{
-						in_handle = current;
-					}
-					if(current  == sign_starttrafficlight)
-					{
-						in_handle = current;
+						in_handle = sign_trafficlight_red;
 					}
 				}
 				else
@@ -160,25 +156,10 @@ void userLoop(line_data &myline, vector<sign_data> &Signs, Engine &engine, bool 
 				}
 				break;
 			};
-			case sign_starttrafficlight:
+			case sign_trafficlight_red:
 			{
-				
-				int n = get_signNum(sign_starttrafficlight,Signs);
-				if(n==-1 || Signs[n].state != greenlight)
-				{
-					engine.speed = 0;
-				}
-				else
-				{
-					in_handle = sign_none;
-				}
-				
-				break;
-			};
-			case sign_trafficlight:
-			{
-				int n = get_signNum(sign_trafficlight,Signs);
-				if(n==-1 || Signs[n].state != greenlight)
+				int n = get_signNum(sign_trafficlight_green,Signs);
+				if(n==-1)
 				{
 					engine.speed = 0;
 				}
@@ -269,29 +250,31 @@ void calcAngleAndSpeed(line_data &myline, Engine &engine)
 	}
 }
 
-bool field[7];
+bool field[10];
 
 signs getMaxPrioritySign(vector<sign_data> &Signs)
 {
 	if(Signs.size()==0) return sign_none;
 	
-	memset(field,0,7);
+	memset(field,0,10);
 	
 	for(unsigned i=0;i<Signs.size();i++)
 	{
-		if(Signs[i].sign == sign_starttrafficlight || Signs[i].sign == sign_trafficlight)
+		if(Signs[i].sign == sign_trafficlight_red || Signs[i].sign == sign_trafficlight_yellow)
 		{
-			if(Signs[i].state == redlight || Signs[i].state == yellowlight)
 			{
 				field[Signs[i].sign] = true;
 			}
 		}
-		field[Signs[i].sign] = true;
+		else
+		{
+			field[Signs[i].sign] = true;
+		}
 	}
 	
 	if(field[sign_stop]) return sign_stop;
-	if(field[sign_trafficlight]) return sign_trafficlight;
-	if(field[sign_starttrafficlight]) return sign_starttrafficlight;
+	if(field[sign_trafficlight_red]) return sign_trafficlight_red;
+	if(field[sign_trafficlight_yellow]) return sign_trafficlight_yellow;
 	if(field[sign_crosswalk]) return sign_crosswalk;
 	if(field[sign_giveway]) return sign_giveway;
 	if(field[sign_mainroad]) return sign_mainroad;

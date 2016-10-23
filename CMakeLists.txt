@@ -4,7 +4,11 @@ set(PROJECT RoboMobile)
 project(${PROJECT})
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -g")
+# 	add_definitions(-g)
+
+# 	add_definitions("-Wall")
+# 	add_definitions("-Wextra")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp -std=c++11 -Wall -g")
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 endif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
 
@@ -14,6 +18,7 @@ set(LIBS ${LIBS}
 	pthread
 )
 
+aux_source_directory(sources/osal SOURCES)
 aux_source_directory(sources SOURCES)
 set(SOURCES ${SOURCES}
 	${PROJECT}.cpp
@@ -23,6 +28,9 @@ include_directories(
 	sources
 	${OpenCV_INCLUDES}
 )
+
+# use, i.e. don't skip the full RPATH for the build tree
+# SET(CMAKE_SKIP_BUILD_RPATH TRUE)
 
 add_executable(${PROJECT} ${SOURCES})
 

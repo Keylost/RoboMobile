@@ -1,7 +1,16 @@
 #include "recognition.hpp"
 
+//#define __PROFILING__
+//#define __DEBUG__
+
 vector<sign_data> Signs;
-sign_data mysign;
+
+const int thresh = 50;
+const int N = 11;
+Net nn[N];
+
+signs signCode[6];
+pthread_mutex_t signsLock;
 
 
 /*
@@ -9,171 +18,109 @@ sign_data mysign;
  * Все найденные знаки добавляются в @Signs.
  * 
  * Входные данные:
- * @frame - ссылка на текущее обрабатываемое цветное(BGR) изображение
+ * @image - ссылка на текущее обрабатываемое цветное(BGR) изображение
  * 
  */
+Mat gray0[3];
+Mat pyr, timg;
 
-void recognize_sign(const Mat &frame, vector<sign_data> &Signs)
+void recognize_sign(const Mat &image, vector<sign_data> &Signs)
 {
-	Mat result;
-	frame.copyTo(result);
-	cvtColor(result,result,CV_BGR2GRAY);
-	vector<vector<Point> > contours;
-	vector<Vec4i> hierarchy;
-	simple_hist colors;
-	
-	//equalizeHist(result, result);
-	//Canny(result, result, 0, 255, 3);
-	adaptiveThreshold(result,result,255,ADAPTIVE_THRESH_GAUSSIAN_C,THRESH_BINARY,11,2); //Привести изображение к чернобелому
-	
-	/*
-	 * Привести контуры объектов к векторному виду и аппроксимировать
-	 * CV_CHAIN_APPROX_SIMPLE -сжимает горизонтальные, вертикальные и диагональные сегменты и оставляет только их конечные точки
-	 * CV_RETR_TREE - способ представления иерархии контуров hierarchy. CV_RETR_TREE - полная иерархия
-	 * Point(0, 0) - сдвиг точек контуров относительно изображения из которого было вырезано, то на котором мы ищем контуры(здесь не используется, поэтому 0)
-	 * result - чернобелое входное изображение
-	 * contours и hierarchy - структуры для хранения контуров и их иерархии соответсвенно
-	 */
-	findContours(result, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0) );
-	mysign.sign = sign_none;
-	mysign.state = greenlight;
-	vector<Point> approx;
-	
-	/*
-	 * Обойти в цикле все найденные на изображении контуры.
-	 */
-	for(size_t i=0;i<contours.size();i++)
-	{
-		/*
-		 * Апроксимировать контуры с точностью пропорциональной их периметру
-		 */
-		approxPolyDP(Mat(contours[i]), approx, arcLength(Mat(contours[i]), true)*0.03, true);
-		
-		/*
-		 * Вычислить площадь контура
-		 */
-		double area = fabs(contourArea((Mat)contours[i]));
-		
-		/*
-		 * Игнорировать слишком маленькие и слишком большие объекты, а также незамкнутые контуры
-		 */
-		if (area < 700 || area > 10000|| !isContourConvex(approx))
-			continue;
-		
-		/*
-		 * Выделить сегмент
-		 */
-		Rect boundingarea = boundingRect(approx);
-		Mat rr =  frame(boundingarea);
-		
-		/*
-		 * Посчитать количество точек определенных в simple_hist цветов внутри сегмента
-		 */
-		color_counter(rr,colors);
-		
-		/* Классифицировать сегменты по количеству углов, соотношению сторон и цветов 
-		 * approx.size() возвращает количество углов сегмента.
-		 */
-		if (approx.size() == 3) //уступи дорогу
-		{
-			//if(colors.red<1000 || colors.white<500 || colors.blue>100 || colors.yellow>100 ||colors.red>2500)	continue;
-			//LOG("[I]: Giveway sign found");
-			//mysign.area = boundingarea;
-			//mysign.sign = sign_giveway;
-		}
-		
-		else if (approx.size() == 4) 
-		{
-			double dy,dx,l1,l2,l3,l4; 
-			dx =approx[1].x-approx[0].x; dy = approx[1].y-approx[0].y;
-			l1 = sqrt((dx*dx)+(dy*dy));
-			dx = approx[2].x-approx[1].x; dy = approx[2].y-approx[1].y;
-			l2 = sqrt((dx*dx)+(dy*dy));
-			double dl =0;
-			if(l2>l1)
-				dl = l2/l1;
-			else
-				dl = l1/l2;
-			
-			
-			if(dl>=1.75&&dl<=2.25 && area<2400) //трехцветный светофор
-			{
-				dx = approx[1].x - approx[0].x; dy = approx[3].y - approx[2].y;
-				l3 = sqrt((dx*dx) + (dy*dy));
-				dx = approx[2].x - approx[1].x; dy = approx[3].y - approx[4].y;
-				l4 = sqrt((dx*dx) + (dy*dy));
-				if (abs(l4 - l2) < 0.1*l4 && abs(l3 - l1) < 0.1*l3)
-				{
-					if (colors.black>area*0.4 && colors.black < area*0.9)
-					{
-						printf("area: %f\n",area);
-						LOG("[I]: Traffic light found");
-						mysign.area = boundingarea;
-						mysign.sign = sign_trafficlight;
-						mysign.state = get_light(rr);
-					}
-				}
-			}
-			if(dl>=1.4&&dl<=1.65 && area > 2300 && area <5600) //двухцветный светофор
-			{
-				dx = approx[1].x - approx[0].x; dy = approx[3].y - approx[2].y;
-				l3 = sqrt((dx*dx) + (dy*dy));
-				dx = approx[2].x - approx[1].x; dy = approx[3].y - approx[4].y;
-				l4 = sqrt((dx*dx) + (dy*dy));
-				if (abs(l4 - l2) < 0.1*l4 && abs(l3 - l1) < 0.1*l3)
-				{
-					if (colors.black>area*0.4 && colors.black < area*0.9)
-					{
-						//printf("area: %f\n", area);
-						LOG("[I]: Start raffic light found");
-						mysign.area = boundingarea;
-						mysign.sign = sign_starttrafficlight;
-						mysign.state = get_light(rr);					
-					}
-				}
-			}
-			else if(dl>=0.85&&dl<=1.15)
-			{
-				dx = approx[1].x - approx[0].x; dy = approx[3].y - approx[2].y;
-				l3 = sqrt((dx*dx) + (dy*dy));
-				dx = approx[2].x - approx[1].x; dy = approx[3].y - approx[4].y;
-				l4 = sqrt((dx*dx) + (dy*dy));
-				if (abs(l4 - l2) < 0.1*l4 && abs(l3 - l1) < 0.1*l3)
-				{
-					if (colors.blue>area*0.5 && colors.blue<area*0.92 && colors.black>area*0.05 && colors.black<area*0.37 && colors.yellow<area*0.15) //пешеходный переход
-					{
-						mysign.sign = sign_crosswalk;
-						mysign.area = boundingarea;
-						LOG("[I]: Crosswalk found");
-					}
-					/*
-					else if(colors.yellow>900 && colors.blue<area*0.1) //главная дорога
-					{
-						mysign.sign = sign_mainroad;
-						mysign.area = boundingarea;
-						LOG("[I]: Mainroad sign found");
-					}
-					*/
-				}
-			}
-		}
+    //уменьшить и увеличить изображение для избавления от шума
+    pyrDown(image, pyr, Size(image.cols/2, image.rows/2));
+    pyrUp(pyr, timg, image.size());
+    
+    split(timg,gray0);
+    
+    for( int c = 0; c < 3; c++ )
+    {
+		#pragma omp parallel for
+        for( int l = 0; l < N; l++ )
+        {
+			Mat gray;
+            if( l == 0 )
+            {
+                Canny(gray0[c], gray, 0, thresh, 5);
+                dilate(gray, gray, Mat(), Point(-1,-1));
+            }
+            else
+            {
+                gray = gray0[c] >= (l+1)*255/N;
+            }
+            
+			vector<vector<Point> > contours;
+            findContours(gray, contours, RETR_LIST, CHAIN_APPROX_SIMPLE);
 
-		else if (approx.size() == 8 && area>3000) //знак "стоп"
-		{
-			if(colors.red>1000) //Проверить цветовые характеристики
-			{
-				mysign.sign = sign_stop;
-				mysign.area = boundingarea;
-				LOG("[I]: Stop found");
-			}
-		}
-		
-		if(mysign.sign != sign_none)
-		{
-			Signs.push_back(mysign);
-			mysign.sign = sign_none;
-		}
-	}
+            vector<Point> approx;
+
+            for( size_t i = 0; i < contours.size(); i++ )
+            {
+                approxPolyDP(Mat(contours[i]), approx, arcLength(Mat(contours[i]), true)*0.02, true);
+                
+                double area = fabs(contourArea(Mat(approx)));
+                
+                if(area > 400 && area < 10000 && isContourConvex(Mat(approx)))
+                {
+					Rect boundingarea = boundingRect(approx);
+					
+					
+					if(boundingarea.width>120 || boundingarea.height>120) continue; // 
+					if(boundingarea.width<13 || boundingarea.height<13) continue;
+					double dl = (double)boundingarea.width/(double)boundingarea.height;
+					if(dl<0.3 || dl>1.2) continue;
+					
+					Mat sng;
+					Mat sng_t = image(boundingarea);
+					cvtColor(sng_t,sng, CV_BGR2GRAY);
+					resize(sng,sng,Size(16,16));
+					double inputs[16*16];
+					for(int  j=0; j<sng.rows*sng.cols;j++)
+					{
+						inputs[j] = (((double)sng.data[j])/255.0);
+					}
+					double answers[8];
+					nn[l].calculate(inputs,answers);
+					int max = 0;
+					for(int j=1;j<9;j++)
+					{
+						if(answers[j]>answers[max]) max=j;
+					}
+					if(answers[max]>0.9)
+					{
+						sign_data mysign;
+						mysign.sign = sign_none;
+						if(max<4)
+						{
+							if(dl>0.80 && dl<1.2)
+							{
+								mysign.sign = signCode[max];
+								mysign.area = boundingarea;
+							}
+						}
+						else
+						{
+							if(answers[4]>0.9)
+							{
+								if(dl<0.7 && dl>0.3)
+								{
+									if(answers[5]>0.5) mysign.sign = sign_trafficlight_red;
+									else if(answers[6]>0.5) mysign.sign = sign_trafficlight_yellow;
+									else if(answers[7]>0.5)mysign.sign = sign_trafficlight_green;
+									mysign.area = boundingarea;
+								}						
+							}
+						}
+						if(mysign.sign!=sign_none)
+						{
+							pthread_mutex_lock(&(signsLock));
+							Signs.push_back(mysign);
+							pthread_mutex_unlock(&(signsLock));
+						}
+					}
+				}
+            }
+        }
+    }
 	return;
 }
 
@@ -249,6 +196,7 @@ void recognize_line(const Mat& orig, line_data &myline,int scan_row)
 					y = b*0.0722 + g*0.7152 + r*0.2126;
 					i++;
 				}
+				if(i-startpoint<10) continue;
 				int center_tmp=(i+startpoint)/2;
 				int difftmp = abs(myline.robot_center-center_tmp);
 				if(difftmp<mindiff)
@@ -260,6 +208,7 @@ void recognize_line(const Mat& orig, line_data &myline,int scan_row)
 				}
 			}
 		}
+		if(mindiff == 1000) center = -1;
 	}
 	
 	if(center_prev!=-1)
@@ -274,7 +223,9 @@ void recognize_line(const Mat& orig, line_data &myline,int scan_row)
 			}
 			else
 			{
+				#ifdef __DEBUG__
 				printf("crossroad \n");
+				#endif
 				crossroad = true;
 				border_left = border_left_prev;
 				border_right = border_right_prev;
@@ -283,9 +234,11 @@ void recognize_line(const Mat& orig, line_data &myline,int scan_row)
 		}
 		else if(abs(border_left-border_left_prev)>40)
 		{
-			border_left = border_left_prev;// + (border_right-border_right_prev);
+			border_left = border_left_prev + (border_right-border_right_prev);
 			center = (border_left+border_right)/2;
+			#ifdef __DEBUG__
 			printf("crossroad \n");
+			#endif
 			crossroad = true;
 		}
 	}
@@ -325,7 +278,7 @@ void* recognize_line_fnc(void *ptr)
 		curObj = queue.waitForNewObject(curObj);
 		Mat &frame = *(curObj->obj);
 		
-		recognize_line(frame,*(newObj->obj),350);
+		recognize_line(frame,*(newObj->obj),470);
 		if((newObj->obj)->stop_line)
 		{
 			t1 = center_prev;
@@ -335,8 +288,8 @@ void* recognize_line_fnc(void *ptr)
 			t5 = border_left_prev;
 			t6 = border_right_prev;
 			
-			recognize_line(frame,*(newObj->obj),340);
-			recognize_line(frame,*(newObj->obj),330);
+			recognize_line(frame,*(newObj->obj),460);
+			recognize_line(frame,*(newObj->obj),450);
 			
 			center_prev = t1;
 			center = t2;
@@ -366,6 +319,22 @@ void* recognize_line_fnc(void *ptr)
 
 void* recognize_sign_fnc(void *ptr)
 {
+	//answers[4] = 0.0;
+	signCode[0] = sign_stop;
+	signCode[1] = sign_crosswalk;
+	signCode[2] = sign_giveway;
+	signCode[3] = sign_mainroad;
+	
+	omp_set_num_threads(N);
+	
+	for(int i=0;i<N;i++)
+	{
+		if(!nn[i].loadModel("../data/models/model_tmp.mdl"))
+		{
+			printf("[E]: Can't load model\n");
+		}
+	}
+	
 	robotimer tm;
 	long spendTime = 0;
 	System &syst = *((System *)ptr);
@@ -382,7 +351,18 @@ void* recognize_sign_fnc(void *ptr)
 		curObj = queue.waitForNewObject(curObj);
 		Mat frame = (*(curObj->obj))(signarea);	
 		
+		
+		#ifdef __PROFILING__
+		robotimer tm_p;
+		tm_p.start();
 		recognize_sign(frame, Signs);
+		tm_p.stop();
+		printf("recognize_sign() - %lu us\n",tm_p.get());
+		#else
+		recognize_sign(frame, Signs);
+		#endif
+		
+		
 		tm.stop();
 		spendTime = tm.get();
 		
@@ -437,34 +417,4 @@ void* recognize_sign_fnc(void *ptr)
 	}
 	
 	return NULL;
-}
-
-
-/*
- * Функция get_light() определяет активный сигнал светофора
- * Входные данные:
- * Mat& roi - указатель на изображение светофора
- * Возвращаемые значения: см. перечисление trafficlight_states в signs.hpp
- */
-uint8_t get_light(Mat& roi)
-{
-	int rg=0,rb=0,gb=0;
-	int b=0,g=0,r=0;
-	
-	uint8_t *row;
-	for(int rows=0;rows<roi.rows;rows++)
-	{
-		row = (uint8_t*)roi.ptr<uint8_t>(rows);
-		for(int col=0;col<roi.cols;col++)
-		{
-			b = row[col*3]; g=row[col*3+1]; r=row[col*3+2];
-			if(r-g>rg) rg=r-g;
-			if(r-b>rb) rb=r-b;
-			if(g-b>gb) gb=g-b;
-		}
-	}
-	
-	if(rb>150 && rg>150 && gb<120 ) return redlight;
-	if(gb>150 && rb>150) return yellowlight;
-	else return greenlight;
 }
