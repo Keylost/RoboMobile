@@ -23,7 +23,6 @@ then
 fi
 
 #installing dependencies
-apt-get remove network-manager
 apt-get install cmake libopencv-dev hostapd dnsmasq git
 
 #stop dnsmasq and hostapd and remove it from autostart
@@ -33,7 +32,9 @@ update-rc.d -f dnsmasq remove
 update-rc.d -f hostapd remove
 
 #clone last RoboMobile from GitHub 
-git clone https://github.com/Keylost/RoboMobile
+#git clone https://github.com/Keylost/RoboMobile
+
+apt-get remove network-manager
 
 #go to work directory
 cd RoboMobile
