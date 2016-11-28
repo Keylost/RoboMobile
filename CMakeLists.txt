@@ -25,6 +25,7 @@ set(SOURCES ${SOURCES}
 )
 
 include_directories(
+	sources/external
 	sources
 	${OpenCV_INCLUDES}
 )

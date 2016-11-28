@@ -1,112 +1,39 @@
 #include "pedestrian.hpp"
 
+using namespace tiny_dnn;
+using namespace tiny_dnn::layers;
+using namespace tiny_dnn::activation;
+using namespace std;
+using namespace cv;
+
+network<sequential> net; //нейросеть
 bool ped_state;
-
-vector<Point> pedTempl;
-
 
 void rec_ped(Mat &frame, bool &ped_state)
 {
-	int32_t r,g,b;
-	uint8_t *row,*bin;
-	ped_state = false;
+	Rect roi1(Point(0,1),Point(50,51));
+	Rect roi2(Point(42,1),Point(92,51));
+	Rect roi3(Point(86,1),Point(136,51));
 	
-	Mat binary(frame.rows, frame.cols, CV_8UC1);
+	vec_t x_data1;
+	Mat_<uint8_t> img_r1;
+	cvtColor(frame(roi1),img_r1,CV_BGR2GRAY);
 	
-	for(int32_t rows=0;rows<frame.rows;rows++)
-	{
-		row = (uint8_t*)frame.ptr<uint8_t>(rows);
-		bin = (uint8_t*)binary.ptr<uint8_t>(rows);
-		for(int32_t col=0;col<frame.cols;col++)
-		{
-			b=row[col*3];g=row[col*3+1];r=row[col*3+2];
-			if((b<=100 && abs(b-g)<25 && abs(b-r)<25 && abs(r-g)<25))
-			{
-				bin[col] = 255;
-				//printf("hare\n");
-			}
-			else
-			{
-				bin[col] = 0;
-			}
-		}
-	}
+	std::transform(img_r1.begin(), img_r1.end(), std::back_inserter(x_data1),
+               [=](uint8_t c) { return c * scale; });	
 	
-	vector<vector<Point> > contours;
-	vector<Vec4i> hierarchy;
-	findContours(binary, contours, RETR_LIST, CHAIN_APPROX_SIMPLE);
+	vec_t y_vector1 = net.predict(x_data1);
 	
-	
-	for( size_t i = 0; i < contours.size(); i++ )
-	{
-		double area = fabs(contourArea(Mat(contours[i])));
-		if(area > 2000 && area < 15000)
-		{
-			Rect boundingarea = boundingRect(contours[i]);
-			Mat segm =  frame(boundingarea);
-			
-			double level = matchShapes(contours[i], pedTempl, CV_CONTOURS_MATCH_I1,0);
-			
-			//printf("level: %f\n", level);
-			if(level<0.3)
-			{
-				ped_state = true;
-				return;
-			}
-			//drawContours( frame, contours, i, Scalar(0,255,0), 2, 8, hierarchy, 0, Point() );
-		}
-	}
+	if(y_vector1[0] > 0.5) ped_state = true;
+	else ped_state = false;
 	
 	return;
 }
 
-
-
-void getTempl()
-{
-	Mat frame = imread("ped.png",1);
-	int32_t r,g,b;
-	uint8_t *row,*bin;
-	
-	Mat binary(frame.rows, frame.cols, CV_8UC1);
-	
-	for(int32_t rows=0;rows<frame.rows;rows++)
-	{
-		row = (uint8_t*)frame.ptr<uint8_t>(rows);
-		bin = (uint8_t*)binary.ptr<uint8_t>(rows);
-		for(int32_t col=0;col<frame.cols;col++)
-		{
-			b=row[col*3];g=row[col*3+1];r=row[col*3+2];
-			if((b<=100 && abs(b-g)<25 && abs(b-r)<25 && abs(r-g)<25))
-			{
-				bin[col] = 255;
-				//printf("hare\n");
-			}
-			else
-			{
-				bin[col] = 0;
-			}
-		}
-	}
-	vector<vector<Point> > contours;
-	findContours(binary, contours, RETR_LIST, CHAIN_APPROX_SIMPLE);
-	
-	if(contours.size()==1)
-	{
-		pedTempl = contours[0];
-	}
-	else
-	{
-		printf("what??\n");
-		exit(0);
-	}
-}
-
-
-
 void* recognize_ped_fnc(void *ptr)
 {
-	getTempl();
+	net.load("my-network"); //загрузить модель
+	
 	ped_state = false;
 	robotimer tm;
 	long spendTime = 0;
@@ -120,11 +47,21 @@ void* recognize_ped_fnc(void *ptr)
 	bool fls = false;
 	bool tr = true;
 	
+	Rect roi(Point(180,240),Point(590,400));
+	Rect roi1(Point(0,1),Point(50,51));
+	Rect roi2(Point(42,1),Point(92,51));
+	Rect roi3(Point(86,1),Point(136,51));
+		
 	while(1)
 	{
 		tm.start();
-		curObj = queue.waitForNewObject(curObj);		
-		rec_ped(*(curObj->obj), ped_state);
+		curObj = queue.waitForNewObject(curObj);
+		
+		Mat img_t = image(*(curObj->obj));
+        Mat rsz;
+        resize(img_t, rsz, Size(410/3,160/3));
+				
+		rec_ped(rsz, ped_state);
 		tm.stop();
 		spendTime = tm.get();
 		

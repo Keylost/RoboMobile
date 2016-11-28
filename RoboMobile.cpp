@@ -40,7 +40,7 @@ int main(int argc, char **argv)
 	
 	/*Создает поток распознавания пешеходов*/
 	pthread_t recognize_ped_thr;
-	//pthread_create(&recognize_ped_thr, NULL, recognize_ped_fnc, &syst);
+	pthread_create(&recognize_ped_thr, NULL, recognize_ped_fnc, &syst);
 	
 	/*Создает поток распознавания знаков на изображении*/
 	pthread_t recognize_sign_thr;
@@ -52,7 +52,7 @@ int main(int argc, char **argv)
 	
 	/*Создает поток записи видео с камеры в видеофайл*/
 	pthread_t videomaker_thr;
-	//pthread_create(&videomaker_thr, NULL, videomaker_fnc, &syst);
+	pthread_create(&videomaker_thr, NULL, videomaker_fnc, &syst);
 	
 	/*Создает поток взаимодействия с микроконтроллером*/
 	pthread_t arduino_thr;
