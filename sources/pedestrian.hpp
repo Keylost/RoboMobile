@@ -7,6 +7,8 @@
 #include "timer.hpp"
 #include "config.hpp"
 #include <stdint.h>
+#include <fstream>
+
 #include "tiny_dnn/tiny_dnn.h"
 
 void* recognize_ped_fnc(void *ptr);

@@ -55,7 +55,8 @@ void* capture_fnc(void *ptr)
 			printf("FPS: %d\n",fps);
 			fps=0;
 			r_timer.start();
-		}		
+		}
+		usleep(100000);
 	}
 	
 	return NULL;

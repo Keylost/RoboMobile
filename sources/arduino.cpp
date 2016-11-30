@@ -99,7 +99,7 @@ void ArduinoCtrl::sendCommand(Engine* engine)
 	int bytes_written = write(arduino_fd, message, sz);
 	if(bytes_written<sz)
 	{
-		LOG("[E]: Arduino: Sending data error");
+		//LOG("[E]: Arduino: Sending data error");
 	}
 	ioctl(arduino_fd, TCSBRK, 1);
 	return;

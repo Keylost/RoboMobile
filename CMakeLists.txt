@@ -18,14 +18,14 @@ set(LIBS ${LIBS}
 	pthread
 )
 
-aux_source_directory(sources/osal SOURCES)
+aux_source_directory(sources/external/tiny-dnn SOURCES)
 aux_source_directory(sources SOURCES)
 set(SOURCES ${SOURCES}
 	${PROJECT}.cpp
 )
 
 include_directories(
-	sources/external
+	sources/external/tiny-dnn
 	sources
 	${OpenCV_INCLUDES}
 )

@@ -47,7 +47,7 @@ void* videomaker_fnc(void *ptr)
 	Object<Mat> *curObj = NULL;
 	Queue<Mat> &queue = syst.queue;
 	
-	if(!syst.videomaker)
+	if(!syst.videomaker || syst.MODE == VIDEO)
 	{	
 		return NULL;
 	}
