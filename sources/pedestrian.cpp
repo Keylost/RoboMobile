@@ -57,7 +57,9 @@ void rec_ped(Mat &frame, bool &ped_state)
 	printf("r1 = %f, r2 = %f, r3 = %f\n",y_data[0][0],y_data[1][0],y_data[2][0]);
 	if(y_data[0][0] > 0.5 || y_data[1][0] > 0.5 || y_data[2][0] > 0.5)
 	{
-		imshow("www",frame(roi1));
+		imshow("www0",frame(roi1));
+		imshow("www1",frame(roi2));
+		imshow("www2",frame(roi3));
 		waitKey(0);
 		ped_state = true;
 	}
