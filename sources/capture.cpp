@@ -29,7 +29,7 @@ void* capture_fnc(void *ptr)
     }
 	cap.set(CV_CAP_PROP_FRAME_WIDTH,syst.capture_width);
 	cap.set(CV_CAP_PROP_FRAME_HEIGHT,syst.capture_height);
-	cap.set(CV_CAP_PROP_FPS,30);
+	cap.set(CV_CAP_PROP_FPS,20);
 	
 	robotimer r_timer;
 	uint32_t fps=0;
@@ -56,7 +56,7 @@ void* capture_fnc(void *ptr)
 			fps=0;
 			r_timer.start();
 		}
-		usleep(100000);
+		//usleep(100000); //->debug
 	}
 	
 	return NULL;

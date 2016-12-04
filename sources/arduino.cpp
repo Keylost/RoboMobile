@@ -92,15 +92,15 @@ int ArduinoCtrl::feedback()
  * Функция send_command() отправляет параметры движения робота на микроконтроллер.
  * @engine - структура содержащая основные параметры движения робота
  */
-void ArduinoCtrl::sendCommand(Engine* engine)
+void ArduinoCtrl::sendCommand(const char* msg, size_t size)
 {
-	snprintf(message, sizeof(message), "SPD %d,%d,%d ", engine->angle, engine->direction, engine->speed);
-	int sz = strlen(message);
-	int bytes_written = write(arduino_fd, message, sz);
-	if(bytes_written<sz)
+	int bytes_written = write(arduino_fd, msg, size);
+	
+	if(bytes_written<(int)size)
 	{
-		//LOG("[E]: Arduino: Sending data error");
+		//LOG("[E]: Arduino: Sending data error"); //todo: ->define debug
 	}
+	
 	ioctl(arduino_fd, TCSBRK, 1);
 	return;
 }
@@ -143,6 +143,7 @@ void* arduino_fnc(void *ptr)
 {
 	System &syst = *((System *)ptr);
 	Engine eng; //локальная копия Engine
+	char message[128]; //буфер для отправки сообщения на ардушилд
 	ArduinoCtrl controller(syst);
 	if(!controller.isConnected())
 	{
@@ -150,14 +151,56 @@ void* arduino_fnc(void *ptr)
 		return NULL;
 	}
 	
-	while(1)
+	if(syst.headDevice == ORANGE_HEAD)
 	{
-		syst.engine_get(eng);
-		controller.sendCommand(&eng);
-		int spd=controller.feedback();
-		if(spd!=-1) eng.real_speed = spd;
-		syst.engine_set_realSpeed(eng.real_speed);
-		usleep(10000); //10 ms. максимальная задержка реакции робоавтомобиля
+		while(1)
+		{
+			syst.engine_get(eng);
+			
+			snprintf(message, sizeof(message), "SPD %d,%d,%d ", eng.angle, eng.direction, eng.speed);
+			controller.sendCommand(message, strlen(message));
+			
+			int spd=controller.feedback();
+			if(spd!=-1) eng.real_speed = spd;
+			syst.engine_set_realSpeed(eng.real_speed);
+			usleep(10000); //10 ms. максимальная задержка реакции робоавтомобиля
+		}
+	}
+	else
+	{
+		Object<line_data> *curLineData = NULL;
+		Queue<line_data> &qline = syst.qline;
+		vector<sign_data> Signs;
+		
+		int delta;
+		while(1)
+		{
+			curLineData = qline.waitForNewObject(curLineData); //получить информацию о положениии линии
+			syst.signs_get(Signs); //получить информацию о знаках дорожного движения, находящихся в поле зрения робота
+			line_data &myline = *(curLineData->obj);
+			
+			if(myline.on_line)
+			{
+				delta = (((double)(myline.center_of_line-myline.robot_center)/myline.robot_center)*100);
+			}
+			else
+			{
+				delta = -110; //код отсутствия линии в поле зрения робота
+			}	
+			
+			message[0] = -126;
+			message[1] = (char)delta;
+			message[2] = (char)(myline.stop_line);
+			message[3] = 0;
+			message[4] = (char)(Signs.size());
+				
+			for(unsigned i=0;i<Signs.size();i++)
+			{
+				message[5+i] = (char)(Signs[i].sign);
+			}
+			
+			controller.sendCommand(message, 5+Signs.size());
+		}
 	}
 	controller.deinit();
 	return NULL;
