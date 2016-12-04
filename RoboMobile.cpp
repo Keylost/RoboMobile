@@ -62,28 +62,30 @@ int main(int argc, char **argv)
 	pthread_t capture_thr;
 	pthread_create(&capture_thr, NULL, capture_fnc, &syst);
 	
-	Object<line_data> *curLineData = NULL;
-	Queue<line_data> &qline = syst.qline;
-	Engine engine;
-	vector<sign_data> Signs;
-	bool ped_state = false;
-	
-	/*
-	 * Основной поток.
-	 * Здесь происходит объдинение данных, полученных с датчиков,
-	 * и расчет парметров движения робота
-	 */
-	while(1)
+	if(syst.headDevice == ORANGE_HEAD)
 	{
-		curLineData = qline.waitForNewObject(curLineData); //получить информацию о положениии линии
-		syst.signs_get(Signs); //получить информацию о знаках дорожного движения, находящихся в поле зрения робота
-		syst.engine_get(engine); //получить текущие параметры движения робота
-		syst.barrier_get(ped_state);
-		
-		userLoop(*(curLineData->obj),Signs,engine,ped_state);	//вызвать функцию расчета параметров движения робота
-		
-		syst.engine_set(engine); //задать новые параметры движения робота
-		curLineData->free(); //освободить взятый из очереди объект
+		Object<line_data> *curLineData = NULL;
+		Queue<line_data> &qline = syst.qline;
+		Engine engine;
+		vector<sign_data> Signs;
+		bool ped_state = false;
+		/*
+		 * Основной поток.
+		 * Здесь происходит объдинение данных, полученных с датчиков,
+		 * и расчет парметров движения робота
+		 */
+		while(1)
+		{
+			curLineData = qline.waitForNewObject(curLineData); //получить информацию о положениии линии
+			syst.signs_get(Signs); //получить информацию о знаках дорожного движения, находящихся в поле зрения робота
+			syst.engine_get(engine); //получить текущие параметры движения робота
+			syst.barrier_get(ped_state);
+			
+			userLoop(*(curLineData->obj),Signs,engine,ped_state);	//вызвать функцию расчета параметров движения робота
+			
+			syst.engine_set(engine); //задать новые параметры движения робота
+			curLineData->free(); //освободить взятый из очереди объект
+		}
 	}
 	
 	/*Не завершать программу. Ожидать завершения потока захвата видео.*/

@@ -90,6 +90,8 @@ void System::init()
 {
 	int sbx,sby,sex,sey;
 	int lbx,lby,lex,ley;
+	char headDev[80];
+	
 	FILE *fp;
 	char buf[180];	
 	fp = fopen("../configs/config.conf","r");
@@ -105,6 +107,11 @@ void System::init()
 	names[pnum].type = STRING_VAL;
 	names[pnum].value = arduino_port;
 	pnum++;
+	
+	snprintf(names[pnum].name,180,"head");
+	names[pnum].type = STRING_VAL;
+	names[pnum].value = headDev;
+	pnum++;	
 	
 	snprintf(names[pnum].name,180,"capture_width");
 	names[pnum].type = INT_VAL;
@@ -191,6 +198,19 @@ void System::init()
 		}
 		
 		goto_newline(fp);
+	}
+	
+	if(strcmp(headDev, "arduino"))
+	{
+		headDevice = ARDUINO_HEAD;
+	}
+	else if(strcmp(headDev, "orange"))
+	{
+		headDevice = ORANGE_HEAD;
+	}
+	else
+	{
+		printf("[W] Value for head is empty or unknown! orange will be used by default.\n");
 	}
 	
 	signarea = Rect( Point( capture_width*(sbx/100.0), capture_height*(sby/100.0) ), Point( capture_width*(sex/100.0), capture_height*(sey/100.0) ) );
