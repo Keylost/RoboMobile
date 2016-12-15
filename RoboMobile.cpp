@@ -13,7 +13,6 @@
 #include "queue.hpp" //объявляет функции взаимодействия с очередями 
 #include "userLoop.hpp" //объявляет функции расчета параметров движения робота
 
-#include "barrierRec.hpp" //объявляет функции распознавания препятствий
 //#include "pedestrian.hpp" //объявляет функции распознавания пешеходов
 
 
@@ -33,10 +32,6 @@ int main(int argc, char **argv)
 	/*Создает поток распознавания линии на изображении*/
 	pthread_t recognize_line_thr;
 	pthread_create(&recognize_line_thr, NULL, recognize_line_fnc, &syst);
-	
-	/*Создает поток распознавания препятствий*/
-	//pthread_t barrier_thr;
-	//pthread_create(&barrier_thr, NULL, barrier_fnc, &syst);
 	
 	/*Создает поток распознавания пешеходов*/
 	pthread_t recognize_ped_thr;
