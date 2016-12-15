@@ -153,6 +153,8 @@ void* arduino_fnc(void *ptr)
 	
 	if(syst.headDevice == ORANGE_HEAD)
 	{
+		LOG("[I]: Head device: Orange.");
+		
 		while(1)
 		{
 			syst.engine_get(eng);
@@ -168,6 +170,7 @@ void* arduino_fnc(void *ptr)
 	}
 	else
 	{
+		LOG("[I]: Head device: Arduino.");
 		Object<line_data> *curLineData = NULL;
 		Queue<line_data> &qline = syst.qline;
 		vector<sign_data> Signs;

@@ -14,7 +14,7 @@
 #include "userLoop.hpp" //объявляет функции расчета параметров движения робота
 
 #include "barrierRec.hpp" //объявляет функции распознавания препятствий
-#include "pedestrian.hpp" //объявляет функции распознавания пешеходов
+//#include "pedestrian.hpp" //объявляет функции распознавания пешеходов
 
 
 /*
@@ -40,7 +40,7 @@ int main(int argc, char **argv)
 	
 	/*Создает поток распознавания пешеходов*/
 	pthread_t recognize_ped_thr;
-	pthread_create(&recognize_ped_thr, NULL, recognize_ped_fnc, &syst);
+	//pthread_create(&recognize_ped_thr, NULL, recognize_ped_fnc, &syst);
 	
 	/*Создает поток распознавания знаков на изображении*/
 	pthread_t recognize_sign_thr;

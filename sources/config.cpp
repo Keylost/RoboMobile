@@ -200,11 +200,11 @@ void System::init()
 		goto_newline(fp);
 	}
 	
-	if(strcmp(headDev, "arduino"))
+	if(strcmp(headDev, "arduino") == 0)
 	{
 		headDevice = ARDUINO_HEAD;
 	}
-	else if(strcmp(headDev, "orange"))
+	else if(strcmp(headDev, "orange") == 0)
 	{
 		headDevice = ORANGE_HEAD;
 	}
