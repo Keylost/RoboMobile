@@ -53,6 +53,7 @@ class ActivationIdentity : public Activation //soft step(sigmoidal) activation f
 	double derivative(double x); //where x = function(x)
 };
 
+////////////////////////////////////////////////////////
 
 ///Logistic
 

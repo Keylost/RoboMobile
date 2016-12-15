@@ -12,7 +12,6 @@
 #include <stdint.h>
 #include "omp.h"
 
-#include "trainDataCollection.hpp"
 #include "net.hpp"
 
 using namespace std;
