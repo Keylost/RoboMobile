@@ -28,13 +28,13 @@ struct sign_data
 {
 	Rect area;
 	signs sign;
-	uint32_t detect_time; //время прошедшее с поледне регистрации знака системой
+	uint32_t detect_time; //время, прошедшее с поледней регистрации знака системой
 };
 
 struct line_data
 {
-	int32_t robot_center = 323; //point on image
-	int32_t center_of_line = 323; //center of black line
+	int32_t robot_center = 323; //точка на изображении, на которую будет выравниваться робот
+	int32_t center_of_line = 323; //точка на изображении, в которой находится центр направляющей линии
 	bool on_line = true;
 	bool stop_line = false;
 };
