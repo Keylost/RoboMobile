@@ -1,5 +1,4 @@
 #pragma once
-//#include "osal/osal_serial_port.h"
 #include "logger.hpp"
 #include "Engine.hpp"
 #include <unistd.h>
@@ -12,8 +11,7 @@
 
 class ArduinoCtrl
 {
-protected:	
-//OsalSerialPort *port;
+protected:
 int arduino_fd; //дескриптор устройства
 char message[128];
 bool connectionStatus;
@@ -24,7 +22,7 @@ bool disconnect();
 public:
 ArduinoCtrl(System &syst);
 int feedback();
-void sendCommand(Engine* engine);
+void sendCommand(const char *message,size_t size);
 void deinit();
 bool isConnected();
 };

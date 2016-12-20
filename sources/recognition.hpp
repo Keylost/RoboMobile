@@ -1,7 +1,6 @@
 #pragma once
 #include <stdlib.h>
 #include <vector>
-#include "features.hpp"
 #include <opencv2/opencv.hpp>
 #include "Engine.hpp"
 #include "logger.hpp"
@@ -10,6 +9,9 @@
 #include "timer.hpp"
 #include "config.hpp"
 #include <stdint.h>
+#include "omp.h"
+
+#include "net.hpp"
 
 using namespace std;
 using namespace cv;
@@ -43,4 +45,4 @@ void recognize_line(const Mat& orig, line_data &myline, int scan_row);
  * Mat& roi - указатель на изображение светофора
  * Возвращаемые значения: см. перечисление trafficlight_states в signs.hpp
  */
-uint8_t get_light(Mat& roi);
+trafficlight_states get_light(Mat& roi);

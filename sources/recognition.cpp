@@ -1,7 +1,16 @@
 #include "recognition.hpp"
 
+//#define __PROFILING__
+//#define __DEBUG__
+
 vector<sign_data> Signs;
-sign_data mysign;
+
+const int thresh = 50;
+const int N = 11;
+Net nn[N];
+
+signs signCode[6];
+pthread_mutex_t signsLock;
 
 
 /*
@@ -9,171 +18,109 @@ sign_data mysign;
  * Все найденные знаки добавляются в @Signs.
  * 
  * Входные данные:
- * @frame - ссылка на текущее обрабатываемое цветное(BGR) изображение
+ * @image - ссылка на текущее обрабатываемое цветное(BGR) изображение
  * 
  */
+Mat gray0[3];
+Mat pyr, timg;
 
-void recognize_sign(const Mat &frame, vector<sign_data> &Signs)
+void recognize_sign(const Mat &image, vector<sign_data> &Signs)
 {
-	Mat result;
-	frame.copyTo(result);
-	cvtColor(result,result,CV_BGR2GRAY);
-	vector<vector<Point> > contours;
-	vector<Vec4i> hierarchy;
-	simple_hist colors;
-	
-	//equalizeHist(result, result);
-	//Canny(result, result, 0, 255, 3);
-	adaptiveThreshold(result,result,255,ADAPTIVE_THRESH_GAUSSIAN_C,THRESH_BINARY,11,2); //Привести изображение к чернобелому
-	
-	/*
-	 * Привести контуры объектов к векторному виду и аппроксимировать
-	 * CV_CHAIN_APPROX_SIMPLE -сжимает горизонтальные, вертикальные и диагональные сегменты и оставляет только их конечные точки
-	 * CV_RETR_TREE - способ представления иерархии контуров hierarchy. CV_RETR_TREE - полная иерархия
-	 * Point(0, 0) - сдвиг точек контуров относительно изображения из которого было вырезано, то на котором мы ищем контуры(здесь не используется, поэтому 0)
-	 * result - чернобелое входное изображение
-	 * contours и hierarchy - структуры для хранения контуров и их иерархии соответсвенно
-	 */
-	findContours(result, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0) );
-	mysign.sign = sign_none;
-	mysign.state = greenlight;
-	vector<Point> approx;
-	
-	/*
-	 * Обойти в цикле все найденные на изображении контуры.
-	 */
-	for(size_t i=0;i<contours.size();i++)
-	{
-		/*
-		 * Апроксимировать контуры с точностью пропорциональной их периметру
-		 */
-		approxPolyDP(Mat(contours[i]), approx, arcLength(Mat(contours[i]), true)*0.03, true);
-		
-		/*
-		 * Вычислить площадь контура
-		 */
-		double area = fabs(contourArea((Mat)contours[i]));
-		
-		/*
-		 * Игнорировать слишком маленькие и слишком большие объекты, а также незамкнутые контуры
-		 */
-		if (area < 700 || area > 10000|| !isContourConvex(approx))
-			continue;
-		
-		/*
-		 * Выделить сегмент
-		 */
-		Rect boundingarea = boundingRect(approx);
-		Mat rr =  frame(boundingarea);
-		
-		/*
-		 * Посчитать количество точек определенных в simple_hist цветов внутри сегмента
-		 */
-		color_counter(rr,colors);
-		
-		/* Классифицировать сегменты по количеству углов, соотношению сторон и цветов 
-		 * approx.size() возвращает количество углов сегмента.
-		 */
-		if (approx.size() == 3) //уступи дорогу
-		{
-			//if(colors.red<1000 || colors.white<500 || colors.blue>100 || colors.yellow>100 ||colors.red>2500)	continue;
-			//LOG("[I]: Giveway sign found");
-			//mysign.area = boundingarea;
-			//mysign.sign = sign_giveway;
-		}
-		
-		else if (approx.size() == 4) 
-		{
-			double dy,dx,l1,l2,l3,l4; 
-			dx =approx[1].x-approx[0].x; dy = approx[1].y-approx[0].y;
-			l1 = sqrt((dx*dx)+(dy*dy));
-			dx = approx[2].x-approx[1].x; dy = approx[2].y-approx[1].y;
-			l2 = sqrt((dx*dx)+(dy*dy));
-			double dl =0;
-			if(l2>l1)
-				dl = l2/l1;
-			else
-				dl = l1/l2;
-			
-			
-			if(dl>=1.75&&dl<=2.25 && area<2400) //трехцветный светофор
-			{
-				dx = approx[1].x - approx[0].x; dy = approx[3].y - approx[2].y;
-				l3 = sqrt((dx*dx) + (dy*dy));
-				dx = approx[2].x - approx[1].x; dy = approx[3].y - approx[4].y;
-				l4 = sqrt((dx*dx) + (dy*dy));
-				if (abs(l4 - l2) < 0.1*l4 && abs(l3 - l1) < 0.1*l3)
-				{
-					if (colors.black>area*0.4 && colors.black < area*0.9)
-					{
-						printf("area: %f\n",area);
-						LOG("[I]: Traffic light found");
-						mysign.area = boundingarea;
-						mysign.sign = sign_trafficlight;
-						mysign.state = get_light(rr);
-					}
-				}
-			}
-			if(dl>=1.4&&dl<=1.65 && area > 2300 && area <5600) //двухцветный светофор
-			{
-				dx = approx[1].x - approx[0].x; dy = approx[3].y - approx[2].y;
-				l3 = sqrt((dx*dx) + (dy*dy));
-				dx = approx[2].x - approx[1].x; dy = approx[3].y - approx[4].y;
-				l4 = sqrt((dx*dx) + (dy*dy));
-				if (abs(l4 - l2) < 0.1*l4 && abs(l3 - l1) < 0.1*l3)
-				{
-					if (colors.black>area*0.4 && colors.black < area*0.9)
-					{
-						//printf("area: %f\n", area);
-						LOG("[I]: Start raffic light found");
-						mysign.area = boundingarea;
-						mysign.sign = sign_starttrafficlight;
-						mysign.state = get_light(rr);					
-					}
-				}
-			}
-			else if(dl>=0.85&&dl<=1.15)
-			{
-				dx = approx[1].x - approx[0].x; dy = approx[3].y - approx[2].y;
-				l3 = sqrt((dx*dx) + (dy*dy));
-				dx = approx[2].x - approx[1].x; dy = approx[3].y - approx[4].y;
-				l4 = sqrt((dx*dx) + (dy*dy));
-				if (abs(l4 - l2) < 0.1*l4 && abs(l3 - l1) < 0.1*l3)
-				{
-					if (colors.blue>area*0.5 && colors.blue<area*0.92 && colors.black>area*0.05 && colors.black<area*0.37 && colors.yellow<area*0.15) //пешеходный переход
-					{
-						mysign.sign = sign_crosswalk;
-						mysign.area = boundingarea;
-						LOG("[I]: Crosswalk found");
-					}
-					/*
-					else if(colors.yellow>900 && colors.blue<area*0.1) //главная дорога
-					{
-						mysign.sign = sign_mainroad;
-						mysign.area = boundingarea;
-						LOG("[I]: Mainroad sign found");
-					}
-					*/
-				}
-			}
-		}
+    //уменьшить и увеличить изображение для избавления от шума
+    pyrDown(image, pyr, Size(image.cols/2, image.rows/2));
+    pyrUp(pyr, timg, image.size());
+    
+    split(timg,gray0);
+    
+    for( int c = 0; c < 3; c++ )
+    {
+		#pragma omp parallel for
+        for( int l = 0; l < N; l++ )
+        {
+			Mat gray;
+            if( l == 0 )
+            {
+                Canny(gray0[c], gray, 0, thresh, 5);
+                dilate(gray, gray, Mat(), Point(-1,-1));
+            }
+            else
+            {
+                gray = gray0[c] >= (l+1)*255/N;
+            }
+            
+			vector<vector<Point> > contours;
+            findContours(gray, contours, RETR_LIST, CHAIN_APPROX_SIMPLE);
 
-		else if (approx.size() == 8 && area>3000) //знак "стоп"
-		{
-			if(colors.red>1000) //Проверить цветовые характеристики
-			{
-				mysign.sign = sign_stop;
-				mysign.area = boundingarea;
-				LOG("[I]: Stop found");
-			}
-		}
-		
-		if(mysign.sign != sign_none)
-		{
-			Signs.push_back(mysign);
-			mysign.sign = sign_none;
-		}
-	}
+            vector<Point> approx;
+
+            for( size_t i = 0; i < contours.size(); i++ )
+            {
+                approxPolyDP(Mat(contours[i]), approx, arcLength(Mat(contours[i]), true)*0.02, true);
+                
+                double area = fabs(contourArea(Mat(approx)));
+                
+                if(area > 400 && area < 10000 && isContourConvex(Mat(approx)))
+                {
+					Rect boundingarea = boundingRect(approx);
+					
+					
+					if(boundingarea.width>120 || boundingarea.height>120) continue; // 
+					if(boundingarea.width<13 || boundingarea.height<13) continue;
+					double dl = (double)boundingarea.width/(double)boundingarea.height;
+					if(dl<0.3 || dl>1.2) continue;
+					
+					Mat sng;
+					Mat sng_t = image(boundingarea);
+					cvtColor(sng_t,sng, CV_BGR2GRAY);
+					resize(sng,sng,Size(16,16));
+					double inputs[16*16];
+					for(int  j=0; j<sng.rows*sng.cols;j++)
+					{
+						inputs[j] = (((double)sng.data[j])/255.0);
+					}
+					double answers[8];
+					nn[l].calculate(inputs,answers);
+					int max = 0;
+					for(int j=1;j<9;j++)
+					{
+						if(answers[j]>answers[max]) max=j;
+					}
+					if(answers[max]>0.9)
+					{
+						sign_data mysign;
+						mysign.sign = sign_none;
+						if(max<4)
+						{
+							if(dl>0.80 && dl<1.2)
+							{
+								mysign.sign = signCode[max];
+								mysign.area = boundingarea;
+							}
+						}
+						else
+						{
+							if(answers[4]>0.9)
+							{
+								if(dl<0.7 && dl>0.3)
+								{
+									if(answers[5]>0.5) mysign.sign = sign_trafficlight_red;
+									else if(answers[6]>0.5) mysign.sign = sign_trafficlight_yellow;
+									else if(answers[7]>0.5)mysign.sign = sign_trafficlight_green;
+									mysign.area = boundingarea;
+								}						
+							}
+						}
+						if(mysign.sign!=sign_none)
+						{
+							pthread_mutex_lock(&(signsLock));
+							Signs.push_back(mysign);
+							pthread_mutex_unlock(&(signsLock));
+						}
+					}
+				}
+            }
+        }
+    }
 	return;
 }
 
@@ -184,188 +131,291 @@ void recognize_sign(const Mat &frame, vector<sign_data> &Signs)
  * @orig - указатель на текущее обрабатываемое цветное(BGR) изображение;
  * @scan_row - номер строки матрицы изображения, по которой будет вестись поиск линии.
  */
-int center_prev=-1;
-int center =-1;
-int border_left=0;
-int border_right =0;
-int border_left_prev=0;
-int border_right_prev =0;
+inline bool isBlack(int x, uint8_t *row)
+{
+	int r = row[3 * x + 2];
+	int g = row[3 * x + 1];
+	int b = row[3 * x + 0];
+
+	return ((b*0.0722 + g*0.7152 + r*0.2126) < 60);
+}
+
 bool crossroad = false;
 
-void recognize_line(const Mat& orig, line_data &myline,int scan_row)
+int min_row = 0;
+int max_row = 0;
+int min_difference = 0;
+int max_difference = 0;
+
+int border_left = 0;
+int border_right = 0;
+
+int center = -1;
+int center_prev = -1;
+int center_first = -1;
+int closest_center = -1;
+int center_of_seria = -1;
+int closest_border_left = -1;
+int closest_border_right = -1;
+
+void recognize_line(const Mat& orig, line_data &myline, int scan_row)
 {
-	center_prev = center;
-	border_left_prev = border_left;
-	border_right_prev = border_right;
-	
-	int b=0,g=0,r=0,y=0;
 	uint8_t *row;
 	row = (uint8_t*)orig.ptr<uint8_t>(scan_row);
-	
-	if(center_prev!=-1)
+
+	if (center_prev == -1)
 	{
-		int j = center_prev;
-		b = row[j*3+0], g = row[j*3+1], r = row[j*3+2];
-		y = b*0.0722 + g*0.7152 + r*0.2126;
-		if(y<60)
+		center = -1;
+		closest_center = -1;
+		closest_border_left = -1;
+		closest_border_right = -1;
+
+		for (int i = 0; i < orig.cols; ++i)
 		{
-			int i=j+1;
-			for(; i<orig.cols;i++)
+			if (isBlack(i, row))
 			{
-				b = row[i*3+0], g = row[i*3+1], r = row[i*3+2];
-				y = b*0.0722 + g*0.7152 + r*0.2126;
-				if(y>60) break;
+				int startPoint = i;
+				int nBlackPoints = 3;
+				while (nBlackPoints > 1 && i + 3 < orig.cols)
+				{
+					i += 3;
+					nBlackPoints = 0;
+					for (int j = 0; j < 3; ++j)
+						nBlackPoints += int(isBlack(i + j, row));
+				}
+				if (i - startPoint < 25)
+				{
+					continue;
+				}
+				else
+				{
+					border_right = i;
+					border_left = startPoint;
+					center = (i + startPoint) / 2;
+					if (abs(320 - center) < abs(320 - closest_center))
+					{
+						closest_center = center;
+						closest_border_left = border_left;
+						closest_border_right = border_right;
+					}
+				}
+			}
+		}
+
+		center = closest_center;
+		border_left = closest_border_left;
+		border_right = closest_border_right;
+	}
+
+	if (center_prev != -1)
+	{
+		if (isBlack(center_prev, row))
+		{
+			int i;
+			int nBlackPoints;
+			for (i = center_prev + 1; i + 3 < orig.cols; i += 3)
+			{
+				nBlackPoints = 0;
+				for (int j = 0; j < 3; ++j)
+					nBlackPoints += int(isBlack(i + j, row));
+				if (nBlackPoints <= 1)
+					break;
 			}
 			border_right = i;
-			i=j-1;
-			for(; i>=0;i--)
+
+			for (i = center_prev - 1; i >= 3; i -= 3)
 			{
-				b = row[i*3+0], g = row[i*3+1], r = row[i*3+2];
-				y = b*0.0722 + g*0.7152 + r*0.2126;
-				if(y>60) break;
+				nBlackPoints = 0;
+				for (int j = 0; j < 3; ++j)
+					nBlackPoints += int(isBlack(i - j, row));
+				if (nBlackPoints <= 1)
+					break;
 			}
 			border_left = i;
-			center = (border_right+border_left)/2;
+
+			center = (border_left + border_right) / 2;
+			if (abs(border_right - border_left) < 25)
+			{
+				center = -1;
+				center_prev = -1;
+				return;
+			}
 		}
 		else
 		{
-			center_prev=-1;
+			center = -1;
+			center_prev = -1;
+			return;
 		}
 	}
-	if(center_prev==-1)
+
+	if (center_first == -1 && center != -1)
 	{
-		int mindiff=1000;
-		for(int i=0;i<orig.cols;i++)
+		center_first = center;
+	}
+
+	if (center != -1 && abs(center_first - center) > 150)
+	{
+		//printf("drop - %d, %d\n", center_first, center);
+		center = -1;
+		center_prev = -1;
+		return;
+	}
+
+	if (center != -1)
+	{
+		if ((abs(border_right - border_left) < min_difference || min_difference == 0))
 		{
-			b = row[i*3+0], g = row[i*3+1], r = row[i*3+2];
-			y = b*0.0722 + g*0.7152 + r*0.2126;
-			if(y<60)
-			{
-				int startpoint = i;
-				i++;
-				while(y<60 && i<orig.cols)
-				{
-					b = row[i*3+0], g = row[i*3+1], r = row[i*3+2];
-					y = b*0.0722 + g*0.7152 + r*0.2126;
-					i++;
-				}
-				int center_tmp=(i+startpoint)/2;
-				int difftmp = abs(myline.robot_center-center_tmp);
-				if(difftmp<mindiff)
-				{
-					mindiff = difftmp;
-					center = center_tmp;
-					border_left = startpoint;
-					border_right = i;
-				}
-			}
+			min_difference = double(abs(border_right - border_left));
+			center_of_seria = center;
+			min_row = scan_row;
 		}
-	}
-	
-	if(center_prev!=-1)
-	{
-		if(abs(border_right-border_right_prev)>65)
+		//abs(border_right - border_left) > 120 && 
+		if ((abs(border_right - border_left) > max_difference || max_difference == 0))
 		{
-			if(abs(border_left-border_left_prev)<30)
-			{
-				myline.stop_line = true;
-				border_right = border_right_prev + (border_left-border_left_prev);
-				center = (border_left+border_right)/2;
-			}
-			else
-			{
-				printf("crossroad \n");
-				crossroad = true;
-				border_left = border_left_prev;
-				border_right = border_right_prev;
-				center = center_prev;
-			}
-		}
-		else if(abs(border_left-border_left_prev)>40)
-		{
-			border_left = border_left_prev;// + (border_right-border_right_prev);
-			center = (border_left+border_right)/2;
-			printf("crossroad \n");
-			crossroad = true;
+			max_difference = double(abs(border_right - border_left));
+			max_row = scan_row;
 		}
 	}
-	
-	if(center!=-1)
-	{
-		myline.center_of_line = center;
-		myline.on_line = true;
-	}
-	else
-	{
-		myline.on_line = false;
-	}
-	
+
+	center_prev = center;
+
 	return;
 }
 
-int t1=0,
-	t2=0,
-	t3=0,
-	t4=0,
-	t5=0,
-	t6=0;
+robotimer last_line_seen;
+bool seenPrevLine = false;
+bool firstLineFound = true;
+
 void* recognize_line_fnc(void *ptr)
 {
 	System &syst = *((System *)ptr);
-	Rect &linearea = syst.linearea;
-	
+	//Rect &linearea = syst.linearea;
+
 	Object<Mat> *curObj = NULL;
 	Queue<Mat> &queue = syst.queue;
-	
+
 	Queue<line_data> &qline = syst.qline;
-	
-	while(1)
+
+	last_line_seen.start();
+
+	while (1)
 	{
 		Object<line_data> *newObj = new Object<line_data>();
 		curObj = queue.waitForNewObject(curObj);
 		Mat &frame = *(curObj->obj);
-		
-		recognize_line(frame,*(newObj->obj),350);
-		if((newObj->obj)->stop_line)
+
+		newObj->obj->on_line = true;
+		newObj->obj->stop_line = false;
+
+		center_first = -1;
+		min_difference = 0;
+		max_difference = 0;
+		center_of_seria = -1;
+
+		recognize_line(frame, *(newObj->obj), 470);
+		center_first = center;
+
+		for (int k = 0; k <= 80; k += 5)
 		{
-			t1 = center_prev;
-			t2 = center;
-			t3 = border_left;
-			t4 = border_right;
-			t5 = border_left_prev;
-			t6 = border_right_prev;
-			
-			recognize_line(frame,*(newObj->obj),340);
-			recognize_line(frame,*(newObj->obj),330);
-			
-			center_prev = t1;
-			center = t2;
-			border_left = t3;
-			border_right = t4;
-			border_left_prev = t5;
-			border_right_prev = t6;
-			
-			if(crossroad)
+			recognize_line(frame, *(newObj->obj), 460 - k);
+		}
+
+		center = center_first;
+		center_prev = center_first;
+
+		last_line_seen.stop();
+		if (min_difference != 0 && max_difference != 0)
+		{
+			//printf("%d - %d: %d - %d - %d\n", min_difference, max_difference, center_of_seria, min_row, max_row);			
+			if ( ((max_difference > 300) && (max_difference > 6 * min_difference)) || ((max_difference > 330) && (min_difference < 200)) ) // || max_difference > 240 || min_difference > 120
 			{
-				(newObj->obj)->stop_line = false;
-				crossroad = false;					
+				if (max_row > 445)
+				{
+					crossroad = true;
+					center_prev = -1;
+					recognize_line(frame, *(newObj->obj), 365);
+					center_prev = center;
+					//printf("crossroad\n");
+					seenPrevLine = false;
+				}
+				else if (firstLineFound || last_line_seen.get() >= 2000 || seenPrevLine || abs(max_difference - min_difference) < 20)
+				{
+					center_prev = -1;
+					recognize_line(frame, *(newObj->obj), 365);
+					center_prev = center;
+					newObj->obj->stop_line = true;
+					//printf("stop line2 - %d\n", last_line_seen.get());
+					firstLineFound = false;
+					seenPrevLine = true;
+				}
+				else
+				{
+					center_prev = -1;
+					recognize_line(frame, *(newObj->obj), 365);
+					center_prev = center;
+					//printf("oops %d\n", center);
+					seenPrevLine = false;
+				}
 			}
 			else
-			{
-				printf("stop line\n");
+			{				
+				if (max_difference > 150 && max_difference > 2.5 * min_difference && (firstLineFound || last_line_seen.get() >= 2000 || seenPrevLine))
+				{
+					center_prev = center_of_seria;
+					center = center_of_seria;
+					newObj->obj->stop_line = true;
+					//printf("stop line1 - %d\n", last_line_seen.get());
+					firstLineFound = false;
+					seenPrevLine = true;					
+				}
+				else
+				{
+					seenPrevLine = false;
+				}
 			}
 		}
-		
+
+		if ((seenPrevLine == true && newObj->obj->stop_line == false) || crossroad == true)
+		{
+			last_line_seen.start();
+		}
+
+		//printf("center = %d(%d, %d)\n", center, center_first, center_of_seria);
+		newObj->obj->center_of_line = center;
+
+		if (crossroad)
+		{
+			crossroad = false;
+			newObj->obj->stop_line = false;			
+		}
+
 		qline.push(newObj);
-		
+
 		curObj->free();
 	}
-	
+
 	return NULL;
 }
 
 void* recognize_sign_fnc(void *ptr)
 {
+	//answers[4] = 0.0;
+	signCode[0] = sign_stop;
+	signCode[1] = sign_crosswalk;
+	signCode[2] = sign_giveway;
+	signCode[3] = sign_mainroad;
+	
+	omp_set_num_threads(N);
+	
+	for(int i=0;i<N;i++)
+	{
+		if(!nn[i].loadModel("../data/models/model_tmp.mdl"))
+		{
+			printf("[E]: Can't load model\n");
+		}
+	}
+	
 	robotimer tm;
 	long spendTime = 0;
 	System &syst = *((System *)ptr);
@@ -382,7 +432,18 @@ void* recognize_sign_fnc(void *ptr)
 		curObj = queue.waitForNewObject(curObj);
 		Mat frame = (*(curObj->obj))(signarea);	
 		
+		
+		#ifdef __PROFILING__
+		robotimer tm_p;
+		tm_p.start();
 		recognize_sign(frame, Signs);
+		tm_p.stop();
+		printf("recognize_sign() - %lu us\n",tm_p.get());
+		#else
+		recognize_sign(frame, Signs);
+		#endif
+		
+		
 		tm.stop();
 		spendTime = tm.get();
 		
@@ -437,34 +498,4 @@ void* recognize_sign_fnc(void *ptr)
 	}
 	
 	return NULL;
-}
-
-
-/*
- * Функция get_light() определяет активный сигнал светофора
- * Входные данные:
- * Mat& roi - указатель на изображение светофора
- * Возвращаемые значения: см. перечисление trafficlight_states в signs.hpp
- */
-uint8_t get_light(Mat& roi)
-{
-	int rg=0,rb=0,gb=0;
-	int b=0,g=0,r=0;
-	
-	uint8_t *row;
-	for(int rows=0;rows<roi.rows;rows++)
-	{
-		row = (uint8_t*)roi.ptr<uint8_t>(rows);
-		for(int col=0;col<roi.cols;col++)
-		{
-			b = row[col*3]; g=row[col*3+1]; r=row[col*3+2];
-			if(r-g>rg) rg=r-g;
-			if(r-b>rb) rb=r-b;
-			if(g-b>gb) gb=g-b;
-		}
-	}
-	
-	if(rb>150 && rg>150 && gb<120 ) return redlight;
-	if(gb>150 && rb>150) return yellowlight;
-	else return greenlight;
 }

@@ -22,6 +22,12 @@ enum modes
 	VIDEO  = 2
 };
 
+enum heads
+{
+	ARDUINO_HEAD=0,
+	ORANGE_HEAD=1
+};
+
 class System
 {
 	private:
@@ -49,6 +55,8 @@ class System
 	char arduino_port[30];
 	modes MODE;
 	
+	heads headDevice;
+	
 	bool videomaker;
 	char videoname[80];
 	
@@ -58,13 +66,14 @@ class System
 	int capture_width;
 	int capture_height;
 	int image_quality;
-	uint32_t robot_center;//will be used as center of robot on image
-	System() //default settings
+	uint32_t robot_center;//точка на кадре, на которую робот будет пытаться выравниться
+	System() //настройки по умолчанию
 	{
 		MODE = CAMERA;
 		capture_width = 640;
 		capture_height = 360;
 		snprintf(arduino_port,30,"/dev/ttyACM0");
+		headDevice = ORANGE_HEAD;
 		image_quality = 80;
 		videomaker = false;
 		robot_center = 320;

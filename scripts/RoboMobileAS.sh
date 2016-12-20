@@ -9,7 +9,7 @@
 # Description:       RoboMobile autostart script
 ### END INIT INFO
 
-PATH_TO_PROG=/home/firefly/RoboMobile/
+PATH_TO_PROG=/home/orangepi/RoboMobile/
 
 rb_start ()
 {
@@ -24,7 +24,7 @@ rb_start ()
 		sleep 1
 		let i=i+1
 	done
-	echo 2 > /sys/module/bcmdhd/parameters/op_mode #only for firefly
+	#echo 2 > /sys/module/bcmdhd/parameters/op_mode #only for firefly
 	ifconfig wlan0 up 192.168.111.1 netmask 255.255.255.0
 	sleep 2
 	
