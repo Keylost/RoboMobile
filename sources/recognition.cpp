@@ -290,7 +290,7 @@ bool firstLineFound = true;
 void* recognize_line_fnc(void *ptr)
 {
 	System &syst = *((System *)ptr);
-	Rect &linearea = syst.linearea;
+	//Rect &linearea = syst.linearea;
 
 	Object<Mat> *curObj = NULL;
 	Queue<Mat> &queue = syst.queue;
@@ -328,7 +328,7 @@ void* recognize_line_fnc(void *ptr)
 		if (min_difference != 0 && max_difference != 0)
 		{
 			//printf("%d - %d: %d - %d - %d\n", min_difference, max_difference, center_of_seria, min_row, max_row);			
-			if (max_difference > 300 && max_difference > 6 * min_difference || max_difference > 330 && min_difference < 200) // || max_difference > 240 || min_difference > 120
+			if ( ((max_difference > 300) && (max_difference > 6 * min_difference)) || ((max_difference > 330) && (min_difference < 200)) ) // || max_difference > 240 || min_difference > 120
 			{
 				if (max_row > 445)
 				{

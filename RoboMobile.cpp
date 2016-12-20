@@ -34,7 +34,7 @@ int main(int argc, char **argv)
 	pthread_create(&recognize_line_thr, NULL, recognize_line_fnc, &syst);
 	
 	/*Создает поток распознавания пешеходов*/
-	pthread_t recognize_ped_thr;
+	//pthread_t recognize_ped_thr;
 	//pthread_create(&recognize_ped_thr, NULL, recognize_ped_fnc, &syst);
 	
 	/*Создает поток распознавания знаков на изображении*/
