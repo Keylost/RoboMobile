@@ -410,7 +410,7 @@ void* recognize_sign_fnc(void *ptr)
 	
 	for(int i=0;i<N;i++)
 	{
-		if(!nn[i].loadModel("../data/models/model_tmp.mdl"))
+		if(!nn[i].loadModel("../data/models/modelSigns.mdl"))
 		{
 			printf("[E]: Can't load model\n");
 		}
