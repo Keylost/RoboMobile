@@ -131,189 +131,270 @@ void recognize_sign(const Mat &image, vector<sign_data> &Signs)
  * @orig - указатель на текущее обрабатываемое цветное(BGR) изображение;
  * @scan_row - номер строки матрицы изображения, по которой будет вестись поиск линии.
  */
-int center_prev=-1;
-int center =-1;
-int border_left=0;
-int border_right =0;
-int border_left_prev=0;
-int border_right_prev =0;
+inline bool isBlack(int x, uint8_t *row)
+{
+	int r = row[3 * x + 2];
+	int g = row[3 * x + 1];
+	int b = row[3 * x + 0];
+
+	return ((b*0.0722 + g*0.7152 + r*0.2126) < 60);
+}
+
 bool crossroad = false;
 
-void recognize_line(const Mat& orig, line_data &myline,int scan_row)
+int min_row = 0;
+int max_row = 0;
+int min_difference = 0;
+int max_difference = 0;
+
+int border_left = 0;
+int border_right = 0;
+
+int center = -1;
+int center_prev = -1;
+int center_first = -1;
+int closest_center = -1;
+int center_of_seria = -1;
+int closest_border_left = -1;
+int closest_border_right = -1;
+
+void recognize_line(const Mat& orig, line_data &myline, int scan_row)
 {
-	center_prev = center;
-	border_left_prev = border_left;
-	border_right_prev = border_right;
-	
-	int b=0,g=0,r=0,y=0;
 	uint8_t *row;
 	row = (uint8_t*)orig.ptr<uint8_t>(scan_row);
-	
-	if(center_prev!=-1)
+
+	if (center_prev == -1)
 	{
-		int j = center_prev;
-		b = row[j*3+0], g = row[j*3+1], r = row[j*3+2];
-		y = b*0.0722 + g*0.7152 + r*0.2126;
-		if(y<60)
+		center = -1;
+		closest_center = -1;
+		closest_border_left = -1;
+		closest_border_right = -1;
+
+		for (int i = 0; i < orig.cols; ++i)
 		{
-			int i=j+1;
-			for(; i<orig.cols;i++)
+			if (isBlack(i, row))
 			{
-				b = row[i*3+0], g = row[i*3+1], r = row[i*3+2];
-				y = b*0.0722 + g*0.7152 + r*0.2126;
-				if(y>60) break;
+				int startPoint = i;
+				int nBlackPoints = 3;
+				while (nBlackPoints > 1 && i + 3 < orig.cols)
+				{
+					i += 3;
+					nBlackPoints = 0;
+					for (int j = 0; j < 3; ++j)
+						nBlackPoints += int(isBlack(i + j, row));
+				}
+				if (i - startPoint < 25)
+				{
+					continue;
+				}
+				else
+				{
+					border_right = i;
+					border_left = startPoint;
+					center = (i + startPoint) / 2;
+					if (abs(320 - center) < abs(320 - closest_center))
+					{
+						closest_center = center;
+						closest_border_left = border_left;
+						closest_border_right = border_right;
+					}
+				}
+			}
+		}
+
+		center = closest_center;
+		border_left = closest_border_left;
+		border_right = closest_border_right;
+	}
+
+	if (center_prev != -1)
+	{
+		if (isBlack(center_prev, row))
+		{
+			int i;
+			int nBlackPoints;
+			for (i = center_prev + 1; i + 3 < orig.cols; i += 3)
+			{
+				nBlackPoints = 0;
+				for (int j = 0; j < 3; ++j)
+					nBlackPoints += int(isBlack(i + j, row));
+				if (nBlackPoints <= 1)
+					break;
 			}
 			border_right = i;
-			i=j-1;
-			for(; i>=0;i--)
+
+			for (i = center_prev - 1; i >= 3; i -= 3)
 			{
-				b = row[i*3+0], g = row[i*3+1], r = row[i*3+2];
-				y = b*0.0722 + g*0.7152 + r*0.2126;
-				if(y>60) break;
+				nBlackPoints = 0;
+				for (int j = 0; j < 3; ++j)
+					nBlackPoints += int(isBlack(i - j, row));
+				if (nBlackPoints <= 1)
+					break;
 			}
 			border_left = i;
-			center = (border_right+border_left)/2;
+
+			center = (border_left + border_right) / 2;
+			if (abs(border_right - border_left) < 25)
+			{
+				center = -1;
+				center_prev = -1;
+				return;
+			}
 		}
 		else
 		{
-			center_prev=-1;
+			center = -1;
+			center_prev = -1;
+			return;
 		}
 	}
-	if(center_prev==-1)
+
+	if (center_first == -1 && center != -1)
 	{
-		int mindiff=1000;
-		for(int i=0;i<orig.cols;i++)
+		center_first = center;
+	}
+
+	if (center != -1 && abs(center_first - center) > 150)
+	{
+		//printf("drop - %d, %d\n", center_first, center);
+		center = -1;
+		center_prev = -1;
+		return;
+	}
+
+	if (center != -1)
+	{
+		if ((abs(border_right - border_left) < min_difference || min_difference == 0))
 		{
-			b = row[i*3+0], g = row[i*3+1], r = row[i*3+2];
-			y = b*0.0722 + g*0.7152 + r*0.2126;
-			if(y<60)
-			{
-				int startpoint = i;
-				i++;
-				while(y<60 && i<orig.cols)
-				{
-					b = row[i*3+0], g = row[i*3+1], r = row[i*3+2];
-					y = b*0.0722 + g*0.7152 + r*0.2126;
-					i++;
-				}
-				if(i-startpoint<10) continue;
-				int center_tmp=(i+startpoint)/2;
-				int difftmp = abs(myline.robot_center-center_tmp);
-				if(difftmp<mindiff)
-				{
-					mindiff = difftmp;
-					center = center_tmp;
-					border_left = startpoint;
-					border_right = i;
-				}
-			}
+			min_difference = double(abs(border_right - border_left));
+			center_of_seria = center;
+			min_row = scan_row;
 		}
-		if(mindiff == 1000) center = -1;
-	}
-	
-	if(center_prev!=-1)
-	{
-		if(abs(border_right-border_right_prev)>65)
+		//abs(border_right - border_left) > 120 && 
+		if ((abs(border_right - border_left) > max_difference || max_difference == 0))
 		{
-			if(abs(border_left-border_left_prev)<30)
-			{
-				myline.stop_line = true;
-				border_right = border_right_prev + (border_left-border_left_prev);
-				center = (border_left+border_right)/2;
-			}
-			else
-			{
-				#ifdef __DEBUG__
-				printf("crossroad \n");
-				#endif
-				crossroad = true;
-				border_left = border_left_prev;
-				border_right = border_right_prev;
-				center = center_prev;
-			}
-		}
-		else if(abs(border_left-border_left_prev)>40)
-		{
-			border_left = border_left_prev + (border_right-border_right_prev);
-			center = (border_left+border_right)/2;
-			#ifdef __DEBUG__
-			printf("crossroad \n");
-			#endif
-			crossroad = true;
+			max_difference = double(abs(border_right - border_left));
+			max_row = scan_row;
 		}
 	}
-	
-	if(center!=-1)
-	{
-		myline.center_of_line = center;
-		myline.on_line = true;
-	}
-	else
-	{
-		myline.on_line = false;
-	}
-	
+
+	center_prev = center;
+
 	return;
 }
 
-int t1=0,
-	t2=0,
-	t3=0,
-	t4=0,
-	t5=0,
-	t6=0;
+robotimer last_line_seen;
+bool seenPrevLine = false;
+bool firstLineFound = true;
+
 void* recognize_line_fnc(void *ptr)
 {
 	System &syst = *((System *)ptr);
 	Rect &linearea = syst.linearea;
-	
+
 	Object<Mat> *curObj = NULL;
 	Queue<Mat> &queue = syst.queue;
-	
+
 	Queue<line_data> &qline = syst.qline;
-	
-	while(1)
+
+	last_line_seen.start();
+
+	while (1)
 	{
 		Object<line_data> *newObj = new Object<line_data>();
 		curObj = queue.waitForNewObject(curObj);
 		Mat &frame = *(curObj->obj);
-		
-		recognize_line(frame,*(newObj->obj),470);
-		if((newObj->obj)->stop_line)
+
+		newObj->obj->on_line = true;
+		newObj->obj->stop_line = false;
+
+		center_first = -1;
+		min_difference = 0;
+		max_difference = 0;
+		center_of_seria = -1;
+
+		recognize_line(frame, *(newObj->obj), 470);
+		center_first = center;
+
+		for (int k = 0; k <= 80; k += 5)
 		{
-			t1 = center_prev;
-			t2 = center;
-			t3 = border_left;
-			t4 = border_right;
-			t5 = border_left_prev;
-			t6 = border_right_prev;
-			
-			recognize_line(frame,*(newObj->obj),460);
-			recognize_line(frame,*(newObj->obj),450);
-			
-			center_prev = t1;
-			center = t2;
-			border_left = t3;
-			border_right = t4;
-			border_left_prev = t5;
-			border_right_prev = t6;
-			
-			if(crossroad)
+			recognize_line(frame, *(newObj->obj), 460 - k);
+		}
+
+		center = center_first;
+		center_prev = center_first;
+
+		last_line_seen.stop();
+		if (min_difference != 0 && max_difference != 0)
+		{
+			//printf("%d - %d: %d - %d - %d\n", min_difference, max_difference, center_of_seria, min_row, max_row);			
+			if (max_difference > 300 && max_difference > 6 * min_difference || max_difference > 330 && min_difference < 200) // || max_difference > 240 || min_difference > 120
 			{
-				(newObj->obj)->stop_line = false;
-				crossroad = false;					
+				if (max_row > 445)
+				{
+					crossroad = true;
+					center_prev = -1;
+					recognize_line(frame, *(newObj->obj), 365);
+					center_prev = center;
+					//printf("crossroad\n");
+					seenPrevLine = false;
+				}
+				else if (firstLineFound || last_line_seen.get() >= 2000 || seenPrevLine || abs(max_difference - min_difference) < 20)
+				{
+					center_prev = -1;
+					recognize_line(frame, *(newObj->obj), 365);
+					center_prev = center;
+					newObj->obj->stop_line = true;
+					//printf("stop line2 - %d\n", last_line_seen.get());
+					firstLineFound = false;
+					seenPrevLine = true;
+				}
+				else
+				{
+					center_prev = -1;
+					recognize_line(frame, *(newObj->obj), 365);
+					center_prev = center;
+					//printf("oops %d\n", center);
+					seenPrevLine = false;
+				}
 			}
 			else
-			{
-				printf("stop line\n");
+			{				
+				if (max_difference > 150 && max_difference > 2.5 * min_difference && (firstLineFound || last_line_seen.get() >= 2000 || seenPrevLine))
+				{
+					center_prev = center_of_seria;
+					center = center_of_seria;
+					newObj->obj->stop_line = true;
+					//printf("stop line1 - %d\n", last_line_seen.get());
+					firstLineFound = false;
+					seenPrevLine = true;					
+				}
+				else
+				{
+					seenPrevLine = false;
+				}
 			}
 		}
-		
+
+		if ((seenPrevLine == true && newObj->obj->stop_line == false) || crossroad == true)
+		{
+			last_line_seen.start();
+		}
+
+		//printf("center = %d(%d, %d)\n", center, center_first, center_of_seria);
+		newObj->obj->center_of_line = center;
+
+		if (crossroad)
+		{
+			crossroad = false;
+			newObj->obj->stop_line = false;			
+		}
+
 		qline.push(newObj);
-		
+
 		curObj->free();
 	}
-	
+
 	return NULL;
 }
 

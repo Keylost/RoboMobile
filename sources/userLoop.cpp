@@ -7,8 +7,8 @@
 
 #define ANGLE_CENTER  			90 //угол сервомотора, при котором колеса робота смотрят прямо
 #define ANGLE_RANGE  			35 //максимальное отклонение сервомотора от центрального положения
-#define MAX_SPEED  				700 //максимальная скорость движения в условных единицах (от 0 до 999)
-#define MIN_SPEED  				500 //минимальная скорость движения в условных единицах (от 0 до 999)
+#define MAX_SPEED  				650 //максимальная скорость движения в условных единицах (от 0 до 999)
+#define MIN_SPEED  				450 //минимальная скорость движения в условных единицах (от 0 до 999)
 #define ANGLE_MIN  				(ANGLE_CENTER - ANGLE_RANGE)
 #define ANGLE_MAX  				(ANGLE_CENTER + ANGLE_RANGE)
 #define speed_crosswalk 		500 //скорость при обнаружении пешеходного перехода
@@ -16,7 +16,7 @@
 #define speed_trafficlight		0 //скорость при обнаружении желтого или красного сигнала светофора
 
 double delta=0,old_delta=0;
-robotimer timer_line;
+robotimer timer_line, last_line_timer;
 signs signPrev = sign_none;
 double signWeightDefault = 0.1;
 double signWeight = 0.1; //текущее влияние знака на скорость
@@ -35,7 +35,7 @@ void startHolding(int32_t holdForMs, int32_t speed)
 	hold = true;
 }
 
-void calcAngleAndSpeed(line_data &myline, Engine &engine);
+void calcAngleAndSpeed(line_data &myline, Engine &engine, vector<sign_data> &Signs);
 signs getMaxPrioritySign(vector<sign_data> &Signs);
 
 signs in_handle = sign_none;
@@ -67,7 +67,7 @@ void userLoop(line_data &myline, vector<sign_data> &Signs, Engine &engine, bool 
 	 * о линии, и записывает эти параметры в engine
 	 */
 	
-	calcAngleAndSpeed(myline,engine);
+	calcAngleAndSpeed(myline,engine, Signs);
 	
 	//test area
 	if(barrier)
@@ -101,7 +101,8 @@ void userLoop(line_data &myline, vector<sign_data> &Signs, Engine &engine, bool 
 			{
 				if(current == sign_trafficlight_red || current == sign_trafficlight_yellow)
 				{
-					if(stoplineInHandle)
+					
+					if(stoplineInHandle || myline.stop_line)
 					{
 						in_handle = sign_trafficlight_red;
 					}
@@ -159,12 +160,15 @@ void userLoop(line_data &myline, vector<sign_data> &Signs, Engine &engine, bool 
 			case sign_trafficlight_red:
 			{
 				int n = get_signNum(sign_trafficlight_green,Signs);
-				if(n==-1)
+				if(n==-1 && myline.stop_line)
 				{
 					engine.speed = 0;
+					timer_line.start();
 				}
 				else
 				{
+					stoplineInHandle = false;
+					engine.speed = MAX_SPEED;
 					in_handle = sign_none;
 				}
 				break;
@@ -187,35 +191,47 @@ void userLoop(line_data &myline, vector<sign_data> &Signs, Engine &engine, bool 
 	}
 }
 
+bool stopLineSeen = false;
 
-
-
-void calcAngleAndSpeed(line_data &myline, Engine &engine)
+void calcAngleAndSpeed(line_data &myline, Engine &engine, vector<sign_data> &Signs)
 {
 	if(myline.on_line)
 	{
-		if(stoplineInHandle)
-		{
-			timer_line.stop();
-			if(timer_line.get()<=500)
+		//last_line_timer.stop();
+		if (in_signs(sign_trafficlight_green, Signs)) { //  || (last_line_timer.get() < 3500 && stopLineSeen)
+			engine.speed = MAX_SPEED;
+			myline.stop_line = false;
+			stoplineInHandle = false;
+		} else {
+			if(stoplineInHandle)
 			{
-				engine.speed=MIN_SPEED;
-				//return;
+				timer_line.stop();// last_line_timer.stop();
+				if(timer_line.get() <= 1400 && myline.stop_line) //2000; && (last_line_timer.get() > 3500 || !stopLineSeen) 
+				{
+					if (engine.speed > MIN_SPEED)
+						engine.speed /= 2;
+					else
+						engine.speed= MIN_SPEED;
+					//return;
+				}
+				else
+				{
+					//last_line_timer.start();
+					myline.stop_line = false;
+					stoplineInHandle = false;
+				}
 			}
 			else
 			{
-				myline.stop_line = false;
-				stoplineInHandle = false;
-			}
-		}
-		else
-		{
-			if(myline.stop_line)
-			{
-				stoplineInHandle = true;
-				timer_line.start();
-				engine.speed=MIN_SPEED;
-				//return;
+				// last_line_timer.stop();
+				if(myline.stop_line) //  && (last_line_timer.get() > 3500 || !stopLineSeen)
+				{
+					stopLineSeen = true;
+					stoplineInHandle = true;
+					timer_line.start();
+					engine.speed= MIN_SPEED;
+					//return;
+				}
 			}
 		}
 
@@ -223,11 +239,11 @@ void calcAngleAndSpeed(line_data &myline, Engine &engine)
 		/* Вычислить отклонение робота от центра линии*/
 		delta = myline.center_of_line-myline.robot_center;
 		
-		if(abs(delta-old_delta)>80) delta = old_delta*0.7 + delta*0.3;
+		if(abs(delta-old_delta)>80) delta = old_delta*0.8 + delta*0.3;
 		
 		/* Вычислить угол поворота робота согласно его отклонению и заданным коэффициентам ПИД регулятора */
 		//engine->angle = 90 - PID(delta,(double)engine.angle); //PID regulator
-		engine.angle = ANGLE_CENTER - delta*1/6.7 - (delta- old_delta)*0.2; //простой PD регулятор; 6.7 - пропорциональная компонента, 0.2 - дифференциальная 
+		engine.angle = ANGLE_CENTER - delta*1/5.9 - (delta- old_delta)*0.3; //простой PD регулятор; 6.7 - пропорциональная компонента, 0.2 - дифференциальная 
 		old_delta = delta;
 		
 		/* Проверить вычисленное значение угла на выход за границы диапазона доступных углов сервопривода*/
