@@ -8,8 +8,7 @@
 #include "config.hpp"
 #include <stdint.h>
 #include <fstream>
-
-#include "tiny_dnn/tiny_dnn.h"
+#include "net.hpp"
 
 void* recognize_ped_fnc(void *ptr);
 
