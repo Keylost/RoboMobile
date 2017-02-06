@@ -71,7 +71,9 @@ Server::Server(System &syst)
 	start();
 }
 
-
+/*
+ * Включить опцию @optName для сокета @sockfd
+ */
 void sockOptEnable(int sockfd, int optName)
 {
 	int32_t optval = 1;
@@ -134,9 +136,10 @@ void Server::start()
 }
 
 /*
- * Функция send() отправляет телеметрию на клиентское приложение
- * @img - ссылка на пересылаемое изображение
- * @tl - указатель на структуру Engine 
+ * Функция send() отправляет данные на клиентское приложение.
+ * @type - тип отправляемых данных. 
+ * @dataSize - размер отправляемых данных.
+ * @ptr - указатель на начало отправляемых данных.
  */
 void Server::send(dataType type, uint32_t dataSize, void *ptr)
 {
