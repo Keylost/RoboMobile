@@ -3,8 +3,6 @@
 using namespace std;
 using namespace cv;
 
-Rect roi(Point(230,200),Point(480,345));
-
 Net nnp;
 double inputs[15*30];
 double answer[1];
@@ -69,6 +67,8 @@ void* recognize_ped_fnc(void *ptr)
 		printf("[E]: Can't load model\n");
 	}
 	
+	Rect roi(Point(230,200),Point(480,345));
+	
 	ped_state = false;
 	robotimer tm;
 	long spendTime = 0;
@@ -131,4 +131,75 @@ void* recognize_ped_fnc(void *ptr)
 	}
 	
 	return NULL;
+}
+
+robotimer crossR_timer;
+bool crossR_flag = false;
+
+void* recognize_auto_fnc(void *ptr)
+{
+	Mat imgGray;
+	Rect roi(Point(0,220),Point(640,480));  
+	System &syst = *((System *)ptr);
+	int frameSkipper = 0;
+	
+	Object<Mat> *curObj = NULL;
+	Queue<Mat> &queue = syst.queue;
+	
+	Object<line_data> *curLineData = NULL;
+	Queue<line_data> &qline = syst.qline;
+	
+	CascadeClassifier cascade; // Объявление каскада
+	bool cascadeLoad = cascade.load("../data/cascades/auto.xml"); // Загрузка каскада
+	
+	if(!cascadeLoad)
+	{
+		printf("[E]: Can't load cascade for autodetection. Check your directory.");
+		return NULL;
+	}	
+	
+	while(1)
+	{
+		curObj = queue.waitForNewObject(curObj);
+		curLineData = qline.waitForNewObject(curLineData);
+		
+		line_data &line  = *(curLineData->obj);
+		
+		if(line.stop_line)
+		{
+			crossR_timer.start();
+			crossR_flag = true; 
+		}
+		
+		if(crossR_flag)
+		{
+			Mat img_t = (*(curObj->obj))(roi);
+			resize(img_t,imgGray,Size(roi.cols/2, roi.rows/2));
+			
+			vector<Rect> Objects;
+			cascade.detectMultiScale(gray, Objects);
+			
+			if(Objects.size()>0)
+			{
+				syst.barrier_set(tr);
+			}
+			else
+			{
+				frameSkipper++;
+				if(frameSkipper>3)
+				{
+					syst.barrier_set(fls);
+				}
+			}
+			
+			crossR_timer.stop();
+			if(crossR_timer.get()>3000)
+			{
+				crossR_flag = false;
+			}
+		}
+		
+		curObj->free();
+		curLineData->free();
+	}		
 }

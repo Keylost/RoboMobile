@@ -12,4 +12,6 @@
 
 void* recognize_ped_fnc(void *ptr);
 
+void* recognize_auto_fnc(void *ptr);
+
 void recognize_ped(cv::Mat &frame, bool &ped_state);
