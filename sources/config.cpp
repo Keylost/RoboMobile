@@ -86,7 +86,7 @@ void goto_newline(FILE *fp)
 /*
  * Функция init() отвечает за инициализацию структуры System и парсинг конфигурационного файла.
  */
-void System::init()
+void System::init(const char *configFileName)
 {
 	int sbx,sby,sex,sey;
 	int lbx,lby,lex,ley;
@@ -94,7 +94,7 @@ void System::init()
 	
 	FILE *fp;
 	char buf[180];	
-	fp = fopen("../configs/config.conf","r");
+	fp = fopen(configFileName,"r");
 	if(fp==NULL)
 	{
 		printf("[E]: Can't open config file. Default config loaded.\n");
@@ -256,16 +256,50 @@ void System::signs_set(vector<sign_data> &source)
 	pthread_mutex_unlock(&(signs_mutex));
 }
 
-void System::barrier_get(bool &destination)
+bool System::barrier_get()
 {
+	bool ret;
 	pthread_mutex_lock(&(barrier_mutex));	
-	destination = barrier;
+	ret = barrier;
+	pthread_mutex_unlock(&(barrier_mutex));
+	return ret;
+}
+
+void System::barrier_set(bool statusFlag)
+{
+	pthread_mutex_lock(&(barrier_mutex));
+	barrier = statusFlag;
 	pthread_mutex_unlock(&(barrier_mutex));
 }
 
-void System::barrier_set(bool &source)
+bool System::pedestrian_get()
 {
-	pthread_mutex_lock(&(barrier_mutex));
-	barrier = source;
+	bool ret;
+	pthread_mutex_lock(&(barrier_mutex));	
+	ret = pedestrian;
 	pthread_mutex_unlock(&(barrier_mutex));
+	return ret;
+}
+
+void System::pedestrian_set(bool statusFlag)
+{
+	pthread_mutex_lock(&(pedestrian_mutex));
+	pedestrian = statusFlag;
+	pthread_mutex_unlock(&(pedestrian_mutex));
+}
+
+bool System::autoModel_get()
+{
+	bool ret;
+	pthread_mutex_lock(&(autoModel_mutex));	
+	ret = autoModel;
+	pthread_mutex_unlock(&(autoModel_mutex));
+	return ret;
+}
+
+void System::autoModel_set(bool statusFlag)
+{
+	pthread_mutex_lock(&(autoModel_mutex));
+	autoModel = statusFlag;
+	pthread_mutex_unlock(&(autoModel_mutex));
 }

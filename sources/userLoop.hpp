@@ -12,6 +12,6 @@ using namespace std;
  * Функция расчитывает параметры движения робота, основываясь на данных датчиков,
  * и записывает их в @engine.
  * @myline - данные о положении линии
- * @Signs - список знаков, находящихся в поле зрения робота
+ * @syst - список знаков, находящихся в поле зрения робота
  */
-void userLoop(line_data &myline, vector<sign_data> &Signs, Engine &engine, bool barrier);
+void userLoop(line_data &myline, System &syst);

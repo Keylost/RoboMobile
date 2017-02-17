@@ -79,8 +79,6 @@ void* recognize_ped_fnc(void *ptr)
 	
 	vector<sign_data> Signs;
 	int last_seen = 10000;
-	bool fls = false;
-	bool tr = true;
 		
 	while(1)
 	{
@@ -119,12 +117,12 @@ void* recognize_ped_fnc(void *ptr)
 		if(last_seen>1000)
 		{
 			 
-			syst.barrier_set(fls);
+			syst.barrier_set(false);
 			last_seen = 10000;			
 		}
 		else
 		{
-			syst.barrier_set(tr);
+			syst.barrier_set(true);
 		}
 		
 		curObj->free();
@@ -142,6 +140,7 @@ void* recognize_auto_fnc(void *ptr)
 	Rect roi(Point(0,220),Point(640,480));  
 	System &syst = *((System *)ptr);
 	int frameSkipper = 0;
+	bool autoModel = false;
 	
 	Object<Mat> *curObj = NULL;
 	Queue<Mat> &queue = syst.queue;
@@ -160,7 +159,6 @@ void* recognize_auto_fnc(void *ptr)
 	
 	while(1)
 	{
-		curObj = queue.waitForNewObject(curObj);
 		curLineData = qline.waitForNewObject(curLineData);
 		
 		line_data &line  = *(curLineData->obj);
@@ -173,33 +171,39 @@ void* recognize_auto_fnc(void *ptr)
 		
 		if(crossR_flag)
 		{
+			curObj = queue.waitForNewObject(curObj);
+			
 			Mat img_t = (*(curObj->obj))(roi);
-			resize(img_t,imgGray,Size(roi.cols/2, roi.rows/2));
+			resize(img_t,imgGray,Size(img_t.cols/2, img_t.rows/2));
+			cvtColor(imgGray, imgGray, CV_BGR2GRAY);
 			
 			vector<Rect> Objects;
-			cascade.detectMultiScale(gray, Objects);
+			cascade.detectMultiScale(imgGray, Objects);
 			
 			if(Objects.size()>0)
 			{
-				syst.barrier_set(tr);
+				autoModel = true;
+				syst.autoModel_set(true);
 			}
 			else
 			{
 				frameSkipper++;
 				if(frameSkipper>3)
 				{
-					syst.barrier_set(fls);
+					autoModel = false;
+					syst.autoModel_set(false);
 				}
 			}
 			
 			crossR_timer.stop();
-			if(crossR_timer.get()>3000)
+			if(!autoModel && crossR_timer.get()>3000)
 			{
 				crossR_flag = false;
 			}
+			
+			curObj->free();
 		}
 		
-		curObj->free();
 		curLineData->free();
-	}		
+	}
 }

@@ -58,19 +58,29 @@ int get_signNum(signs sign,vector<sign_data> &Signs)
 /*
  * Функция userLoop() занимается обработкой данных о линии, разметке и знаках
  * Функция  должна задавать параметры движения робота в engine.
- * Никогда не используйте sleep или usleep в этой функции
+ * Избегайте использования sleep или usleep в этой функции
  */
-void userLoop(line_data &myline, vector<sign_data> &Signs, Engine &engine, bool barrier)
+
+Engine engine;
+vector<sign_data> Signs;
+bool isPedestrian = false;
+bool isAutoModel = false;
+
+void userLoop(line_data &myline, System &syst)
 {
+	syst.signs_get(Signs); //получить информацию о знаках дорожного движения, находящихся в поле зрения робота
+	syst.engine_get(engine); //получить текущие параметры движения робота
+	isPedestrian = syst.pedestrian_get(); //получить данные о наличии пешеходов в кадре
+	isAutoModel = syst.autoModel_get(); //получить данные о наличии пешеходов в кадре
+	
 	/*
 	 * Функция вычисляет скорость движения и угол поворота на основании данных
 	 * о линии, и записывает эти параметры в engine
 	 */
-	
 	calcAngleAndSpeed(myline,engine, Signs);
 	
 	//test area
-	if(barrier)
+	if(isPedestrian || isAutoModel)
 	{
 		printf("barrier\n");
 		engine.speed = 0;
@@ -189,6 +199,10 @@ void userLoop(line_data &myline, vector<sign_data> &Signs, Engine &engine, bool 
 			};
 		}
 	}
+	
+	syst.engine_set(engine); //задать новые параметры движения робота
+	
+	return;
 }
 
 bool stopLineSeen = false;

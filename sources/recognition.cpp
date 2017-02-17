@@ -3,7 +3,7 @@
 //#define __PROFILING__
 //#define __DEBUG__
 
-vector<sign_data> Signs;
+//
 
 const int thresh = 50;
 const int N = 11;
@@ -422,6 +422,7 @@ void* recognize_sign_fnc(void *ptr)
 	Rect &signarea = syst.signarea;
 	int lsz = 0,gsz=0;
 	vector<sign_data> SignsGlobal;
+	vector<sign_data> Signs; //local
 	
 	Object<Mat> *curObj = NULL;
 	Queue<Mat> &queue = syst.queue;
