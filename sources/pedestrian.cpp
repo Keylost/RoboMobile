@@ -62,9 +62,10 @@ void rec_ped(Mat &frame, bool &ped_state)
 
 void* recognize_ped_fnc(void *ptr)
 {
-	if(nnp.loadModel("../data/models/modelPd.mdl"))
+	if(!nnp.loadModel("../data/models/modelPd.mdl"))
 	{
-		printf("[E]: Can't load model\n");
+		printf("[E]: Can't load model for pedestrian models recognition.\n");
+		return NULL;
 	}
 	
 	Rect roi(Point(230,200),Point(480,345));

@@ -55,6 +55,15 @@ int get_signNum(signs sign,vector<sign_data> &Signs)
 	}
 	return -1;
 }
+
+bool isCrossRegulated(vector<sign_data> &Signs)
+{
+	for(unsigned i=0;i<Signs.size();i++)
+	{
+		if(Signs[i].sign == sign_trafficlight_green || Signs[i].sign == sign_trafficlight_red || Signs[i].sign == sign_trafficlight_yellow || Signs[i].sign == sign_trafficlight_yelRed || Signs[i].sign == sign_mainroad) return true;
+	}
+	return false;
+}
 /*
  * Функция userLoop() занимается обработкой данных о линии, разметке и знаках
  * Функция  должна задавать параметры движения робота в engine.
@@ -80,11 +89,24 @@ void userLoop(line_data &myline, System &syst)
 	calcAngleAndSpeed(myline,engine, Signs);
 	
 	//test area
-	if(isPedestrian || isAutoModel)
+	if(isPedestrian)
 	{
 		printf("barrier\n");
 		engine.speed = 0;
 		startHolding(500,0);
+	}
+	if(isAutoModel)
+	{
+		printf("Other model detected!\n");
+		if(!isCrossRegulated(Signs))
+		{
+			engine.speed = 0;
+			startHolding(500,0);
+		}
+		else
+		{
+			printf("Other model ignored coz of regulation.\n");
+		}
 	}
 	//test area
 	

@@ -103,10 +103,13 @@ void recognize_sign(const Mat &image, vector<sign_data> &Signs)
 							{
 								if(dl<0.7 && dl>0.3)
 								{
-									if(answers[5]>0.5) mysign.sign = sign_trafficlight_red;
-									else if(answers[6]>0.5) mysign.sign = sign_trafficlight_yellow;
-									else if(answers[7]>0.5)mysign.sign = sign_trafficlight_green;
 									mysign.area = boundingarea;
+									mysign.sign = sign_trafficlight_off;
+									
+									if(answers[5]>0.5 && answers[6]>0.5) mysign.sign = sign_trafficlight_yelRed;
+									else if(answers[5]>0.5) mysign.sign = sign_trafficlight_red;
+									else if(answers[6]>0.5) mysign.sign = sign_trafficlight_yellow;
+									else if(answers[7]>0.5)mysign.sign = sign_trafficlight_green;									
 								}						
 							}
 						}
