@@ -14,7 +14,7 @@
 #include "userLoop.hpp" //объявляет функции расчета параметров движения робота
 
 #include "pedestrian.hpp" //объявляет функции распознавания пешеходов
-
+#include "barriers.hpp"
 
 /*
  * RoboMobile - это многопоточное приложение, предназначеннное для управления робототехническим средством
@@ -36,6 +36,9 @@ int main(int argc, char **argv)
 	/*Создает поток распознавания пешеходов*/
 	pthread_t recognize_ped_thr;
 	pthread_create(&recognize_ped_thr, NULL, recognize_ped_fnc, &syst);
+	
+	pthread_t recognize_barrier_thr;
+	pthread_create(&recognize_barrier_thr, NULL, recognize_barrier_fnc, &syst);	
 	
 	/*Создает поток распознавания моделей автомобилей*/
 	pthread_t recognize_auto_thr;

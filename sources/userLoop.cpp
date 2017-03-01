@@ -74,6 +74,7 @@ Engine engine;
 vector<sign_data> Signs;
 bool isPedestrian = false;
 bool isAutoModel = false;
+bool isBarrier = false;
 
 void userLoop(line_data &myline, System &syst)
 {
@@ -81,6 +82,7 @@ void userLoop(line_data &myline, System &syst)
 	syst.engine_get(engine); //получить текущие параметры движения робота
 	isPedestrian = syst.pedestrian_get(); //получить данные о наличии пешеходов в кадре
 	isAutoModel = syst.autoModel_get(); //получить данные о наличии пешеходов в кадре
+	isBarrier = syst.barrier_get();
 	
 	/*
 	 * Функция вычисляет скорость движения и угол поворота на основании данных
@@ -89,9 +91,15 @@ void userLoop(line_data &myline, System &syst)
 	calcAngleAndSpeed(myline,engine, Signs);
 	
 	//test area
+	if(isBarrier)
+	{
+		printf("Barrier detected!\n");
+		engine.speed = 0;
+		startHolding(500,0);		
+	}
 	if(isPedestrian)
 	{
-		printf("barrier\n");
+		printf("Pedestrian detected!\n");
 		engine.speed = 0;
 		startHolding(500,0);
 	}
