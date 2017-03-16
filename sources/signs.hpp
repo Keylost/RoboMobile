@@ -1,8 +1,6 @@
 #pragma once
 #include <opencv2/opencv.hpp>
 
-using namespace cv;
-
 enum signs
 {
 	sign_none          = 0,
@@ -29,7 +27,7 @@ enum trafficlight_states
 
 struct sign_data
 {
-	Rect area;
+	cv::Rect area;
 	signs sign;
 	uint32_t detect_time; //время, прошедшее с поледней регистрации знака системой
 };

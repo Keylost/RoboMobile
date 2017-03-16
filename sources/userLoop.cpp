@@ -91,7 +91,7 @@ void userLoop(line_data &myline, System &syst)
 	//test area
 	if(isPedestrian)
 	{
-		printf("barrier\n");
+		printf("pedestrian\n");
 		engine.speed = 0;
 		startHolding(500,0);
 	}

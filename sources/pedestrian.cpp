@@ -73,6 +73,8 @@ void* recognize_ped_fnc(void *ptr)
 	ped_state = false;
 	robotimer tm;
 	long spendTime = 0;
+	int frameSkipper = 0;
+	bool pedSign = false;
 	System &syst = *((System *)ptr);
 	
 	Object<Mat> *curObj = NULL;
@@ -83,50 +85,65 @@ void* recognize_ped_fnc(void *ptr)
 		
 	while(1)
 	{
-		tm.start();
-		curObj = queue.waitForNewObject(curObj);
-		
-		Mat img_t = (*(curObj->obj))(roi);
-		Mat rsz;
-		resize(img_t, rsz, Size(250/2,140/2));
-		
-		ped_state = false;
-		rec_ped(rsz, ped_state);
-		tm.stop();
-		spendTime = tm.get();
-		
-		if(ped_state == true)
+		syst.signs_get(Signs);
+		unsigned i=0;
+		for(;i<Signs.size();i++)
 		{
-			syst.signs_get(Signs);
-			unsigned i=0;
-			for(;i<Signs.size();i++)
+			if(Signs[i].sign == sign_crosswalk)
 			{
-				if(Signs[i].sign == sign_crosswalk) break;
+				pedSign = true;
+				frameSkipper = 0;
 			}
-			if(i==Signs.size()) ped_state = false;
 		}
+		if(i==Signs.size())
+		{
+			if(frameSkipper<10)
+			{
+				frameSkipper++;
+			}
+			else
+			{
+				pedSign = false;
+			}
+		}	
 		
-		if(ped_state == true)
+		if(pedSign || ped_state)
 		{
-			last_seen = 0;
+			tm.start();
+			curObj = queue.waitForNewObject(curObj);
+			
+			Mat img_t = (*(curObj->obj))(roi);
+			Mat rsz;
+			resize(img_t, rsz, Size(250/2,140/2));
+			
+			ped_state = false;
+			rec_ped(rsz, ped_state);
+			tm.stop();
+			spendTime = tm.get();
+			
+			if(ped_state == true)
+			{
+				last_seen = 0;
+			}
+			else
+			{
+				last_seen += spendTime;
+			}
+			
+			if(last_seen>1000)
+			{
+				ped_state = false;
+				syst.pedestrian_set(false);
+				last_seen = 10000;			
+			}
+			else
+			{
+				ped_state = true;
+				syst.pedestrian_set(true);
+			}
+			
+			curObj->free();
 		}
-		else
-		{
-			last_seen += spendTime;
-		}
-		
-		if(last_seen>1000)
-		{
-			 
-			syst.barrier_set(false);
-			last_seen = 10000;			
-		}
-		else
-		{
-			syst.barrier_set(true);
-		}
-		
-		curObj->free();
 	}
 	
 	return NULL;
