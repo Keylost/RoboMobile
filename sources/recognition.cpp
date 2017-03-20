@@ -3,15 +3,12 @@
 //#define __PROFILING__
 //#define __DEBUG__
 
-//
 
-const int thresh = 50;
-const int N = 11;
-Net nn[N];
+const int thresh = 50; //Порог для детектора границ Canny
+const int N = 11; //Количество ступеней для пороговой бинаризации изображения, если N=11, то будет создано 11 бинарных изображений
+Net nn[N]; //Нейросети. Количество нейросетей определяется количеством потоков, т.к. их код не является потокобезопасным
 
-signs signCode[6];
-pthread_mutex_t signsLock;
-
+signs signCode[6]; //хранит коды знаков и служит для преобразования ответа нейросети в код знака
 
 /*
  * Функция recognize_sign() занимается распознаванием знаков на изображении.
@@ -21,8 +18,9 @@ pthread_mutex_t signsLock;
  * @image - ссылка на текущее обрабатываемое цветное(BGR) изображение
  * 
  */
-Mat gray0[3];
-Mat pyr, timg;
+Mat gray0[3]; //Используются для хранения временных изображений
+Mat pyr, timg; //Используются для хранения временных изображений
+pthread_mutex_t signsLock; //защищает @Signs от одновременного использования несколькими потоками
 
 void recognize_sign(const Mat &image, vector<sign_data> &Signs)
 {
@@ -134,7 +132,7 @@ void recognize_sign(const Mat &image, vector<sign_data> &Signs)
  * @orig - указатель на текущее обрабатываемое цветное(BGR) изображение;
  * @scan_row - номер строки матрицы изображения, по которой будет вестись поиск линии.
  */
-inline bool isBlack(int x, uint8_t *row)
+inline bool isBlack(int x, uint8_t *row) //вспомогательная функция для определения является ли точка x в строке row черной
 {
 	int r = row[3 * x + 2];
 	int g = row[3 * x + 1];
@@ -143,7 +141,7 @@ inline bool isBlack(int x, uint8_t *row)
 	return ((b*0.0722 + g*0.7152 + r*0.2126) < 60);
 }
 
-bool crossroad = false;
+bool crossroad = false; //Флаг. Истина, если в кадре есть перекресток, иначе - ложь.
 
 int min_row = 0;
 int max_row = 0;
@@ -290,6 +288,10 @@ robotimer last_line_seen;
 bool seenPrevLine = false;
 bool firstLineFound = true;
 
+/*
+ * Функция recognize_line_fnc() реализует поток распознования разметки дорожного полотна.
+ * @ptr - указатель на объект класса System
+ */
 void* recognize_line_fnc(void *ptr)
 {
 	System &syst = *((System *)ptr);
@@ -401,9 +403,12 @@ void* recognize_line_fnc(void *ptr)
 	return NULL;
 }
 
+/*
+ * Функция recognize_sign_fnc() реализует поток распознования знаков и светофоров.
+ * @ptr - указатель на объект класса System
+ */
 void* recognize_sign_fnc(void *ptr)
 {
-	//answers[4] = 0.0;
 	signCode[0] = sign_stop;
 	signCode[1] = sign_crosswalk;
 	signCode[2] = sign_giveway;
@@ -415,7 +420,7 @@ void* recognize_sign_fnc(void *ptr)
 	{
 		if(!nn[i].loadModel("../data/models/modelSigns.mdl"))
 		{
-			printf("[E]: Can't load model\n");
+			printf("[E]: Can't load NN model for signs\n");
 		}
 	}
 	

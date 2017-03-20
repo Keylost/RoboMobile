@@ -1,4 +1,4 @@
 #pragma once
 #include <stdio.h>
 
-void LOG(const char* message);
+#define LOG(msg); printf("%s\n",msg); //Вспомогательная функция для ведения лога

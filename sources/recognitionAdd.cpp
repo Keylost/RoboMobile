@@ -1,4 +1,4 @@
-#include "pedestrian.hpp"
+#include "recognitionAdd.hpp"
 
 using namespace std;
 using namespace cv;
