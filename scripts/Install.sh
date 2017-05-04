@@ -34,15 +34,20 @@ update-rc.d -f hostapd remove
 #clone last RoboMobile from GitHub 
 #git clone https://github.com/Keylost/RoboMobile
 
-apt-get remove network-manager
-
-#go to work directory
-cd RoboMobile
+#configure connections
+cp hostapd.conf /etc/hostapd/hostapd.conf
+cp dnsmasq.conf /etc/dnsmasq.conf
+cp interfaces /etc/network/interfaces
 
 #adding robomobile to autostart
 cp RoboMobileAS.sh /etc/init.d/RoboMobileAS.sh
 chmod +x /etc/init.d/RoboMobileAS.sh
 update-rc.d RoboMobileAS.sh defaults
+
+apt-get remove network-manager
+
+#go to work directory
+cd RoboMobile
 
 #building
 mkdir build
