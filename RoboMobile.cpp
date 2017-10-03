@@ -30,19 +30,19 @@ int main(int argc, char **argv)
 	
 	/*Создает поток распознавания линии на изображении*/
 	pthread_t recognize_line_thr;
-	pthread_create(&recognize_line_thr, NULL, recognize_line_fnc, &syst);
+	//pthread_create(&recognize_line_thr, NULL, recognize_line_fnc, &syst);
 	
 	/*Создает поток распознавания пешеходов*/
 	pthread_t recognize_ped_thr;
-	pthread_create(&recognize_ped_thr, NULL, recognize_ped_fnc, &syst);
+	//pthread_create(&recognize_ped_thr, NULL, recognize_ped_fnc, &syst);
 	
 	/*Создает поток распознавания моделей автомобилей*/
 	pthread_t recognize_auto_thr;
-	pthread_create(&recognize_auto_thr, NULL, recognize_auto_fnc, &syst);	
+	//pthread_create(&recognize_auto_thr, NULL, recognize_auto_fnc, &syst);	
 	
 	/*Создает поток распознавания знаков на изображении*/
 	pthread_t recognize_sign_thr;
-	pthread_create(&recognize_sign_thr, NULL, recognize_sign_fnc, &syst);
+	//pthread_create(&recognize_sign_thr, NULL, recognize_sign_fnc, &syst);
 	
 	/*Создает поток взаимодействия с клиентским приложением*/
 	pthread_t server_thr;

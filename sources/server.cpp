@@ -39,17 +39,31 @@ bool get_data(void *dst, int socket, size_t size)
  * Функция receiv() реализует поток приема данных с клиентского приложения 
  * @ptr - указатель на объект класса Server
  */
+ 
+struct RC_Command
+{
+	uint32_t speed = 0;
+	uint32_t angle = 90;
+	uint32_t direction = 1;
+};
 void *receiv(void *ptr)
 {
 	Server *pt  = (Server *)ptr;
+	Engine eng;
+	RC_Command cmd;
+	
 	LOG("receiver started");
 	while(true)
 	{
 		if(pt->isconnected)
 		{
-			//if(get_data(&(pt->engine->power),pt->newsockfd,1))
+			if(get_data(&cmd,pt->newsockfd,sizeof(RC_Command)))
 			{
-				LOG("[I]: Receiver got data");
+				pt->sys->engine_get(eng);
+				eng.speed = cmd.speed;
+				eng.angle = cmd.angle;
+				eng.direction = cmd.direction;
+				pt->sys->engine_set(eng);
 			}
 		}
 		else usleep(300000); //300 ms
@@ -132,6 +146,19 @@ void Server::start()
 		 
 	send_data(&sys->signarea,newsockfd,sizeof(Rect));
 	send_data(&sys->linearea,newsockfd,sizeof(Rect));
+	
+	char remoteControl = '0';
+	get_data(&remoteControl, newsockfd, 1);
+	
+	if(remoteControl == '1' && sys->headDevice == ARDUINO_HEAD)
+	{
+		LOG("[E]: Impossible to set up remote control while arduino is using as headDevice");
+	}
+	else
+	{
+		sys->remoteControl = true;
+	}
+	
 	return;
 }
 
@@ -179,6 +206,7 @@ void Server::send(dataType type, uint32_t dataSize, void *ptr)
  */
 void Server::stop()
 {
+	if(sys->remoteControl) sys->remoteControl = false;
 	close(newsockfd);
 	close(sockfd);
 }
@@ -186,9 +214,8 @@ void Server::stop()
 /*
  * Функция receiver() отвечает за создание потока приема данных от клиентского приложения
  */
-void Server::receiver(Engine *eng)
+void Server::receiver()
 {
-	engine = eng;
 	pthread_t receiver_thr;
 	pthread_create(&receiver_thr, NULL, receiv, this);
 	pthread_detach(receiver_thr);	
@@ -221,20 +248,26 @@ void* server_fnc(void *ptr)
 	Server srv(syst);
 	
 	/* Запускает поток приема управляющих команд */
-	//srv.receiver(&queue_engine.manual);
+	if(syst.remoteControl)
+	{
+		srv.receiver();
+	}
+	Mat tmp;
 	
 	/*Основной цикл потока*/
 	while(1)
 	{
 			curObj = queue.waitForNewObject(curObj);
-			curLineData = qline.waitForNewObject(curLineData);
+			//curLineData = qline.waitForNewObject(curLineData);
 			Mat &frame = *(curObj->obj);
-			imencode(".jpg", frame, buffer, parameters);
+			resize(frame, tmp, Size(320,240));
+			cvtColor(tmp, tmp, CV_BGR2GRAY);
+			imencode(".jpg", tmp, buffer, parameters);
 			syst.engine_get(eng);
 			
 			srv.send(Image_t,(uint32_t)buffer.size(),(void *)(&buffer[0]));
-			srv.send(Line_t,sizeof(line_data),(void *)(curLineData->obj));
-			srv.send(Engine_t,sizeof(Engine),(void *)(&eng));
+			//srv.send(Line_t,sizeof(line_data),(void *)(curLineData->obj));
+			//srv.send(Engine_t,sizeof(Engine),(void *)(&eng));
 			
 			
 			syst.signs_get(Signs);
@@ -244,7 +277,7 @@ void* server_fnc(void *ptr)
 			}
 			
 			curObj->free();
-			curLineData->free();
+			//curLineData->free();
 	}
 	
 	return NULL;

@@ -83,6 +83,11 @@ class System
 	Queue<Mat> queue; //очередь для кадров с видеокамеры
 	Queue<line_data> qline; //очередь для данных линии
 	
+	/*
+	 * Включить/выключить удаленное управление роботом
+	 */
+	bool remoteControl;
+	
 	char arduino_port[30];
 	modes MODE;
 	
@@ -127,6 +132,8 @@ class System
 		barrier = false;
 		pedestrian = false;
 		autoModel = false;
+		
+		remoteControl = false; //выключить удаленнное управление по умолчанию.
 	}
 	
 	/*

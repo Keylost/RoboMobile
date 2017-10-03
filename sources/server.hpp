@@ -30,12 +30,12 @@ enum dataType
 class Server
 {
 private:
-	System *sys;
 	bool is_send;
 	int sockfd;
 	int portno;
 	void start();
 public:
+	System *sys;
 	int newsockfd;
 	bool isconnected;
 	Engine *engine;
@@ -43,7 +43,7 @@ public:
 	Server(System &syst);
 	void stop();
 	void send(dataType type, uint32_t dataSize, void *ptr);
-	void receiver(Engine *eng);
+	void receiver();
 };
 
 

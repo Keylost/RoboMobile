@@ -76,149 +76,151 @@ bool isCrossRegulated(vector<sign_data> &Signs);
  */
 void userLoop(line_data &myline, System &syst)
 {
-	syst.signs_get(Signs); //получить информацию о знаках дорожного движения, находящихся в поле зрения робота
-	syst.engine_get(engine); //получить текущие параметры движения робота
-	isPedestrian = syst.pedestrian_get(); //получить данные о наличии пешеходов в кадре
-	isAutoModel = syst.autoModel_get(); //получить данные о наличии других моделей робота в кадре
-	
-	/*
-	 * Функция вычисляет скорость движения и угол поворота на основании данных
-	 * о линии, и записывает эти параметры в engine
-	 */
-	calcAngleAndSpeed(myline,engine, Signs);
-	
-	if(isPedestrian)
+	if(!syst.remoteControl)
 	{
-		printf("pedestrian\n");
-		engine.speed = 0;
-		startHolding(500,0);
-	}
-	if(isAutoModel)
-	{
-		printf("Other model detected!\n");
-		if(!isCrossRegulated(Signs))
+		syst.signs_get(Signs); //получить информацию о знаках дорожного движения, находящихся в поле зрения робота
+		syst.engine_get(engine); //получить текущие параметры движения робота
+		isPedestrian = syst.pedestrian_get(); //получить данные о наличии пешеходов в кадре
+		isAutoModel = syst.autoModel_get(); //получить данные о наличии других моделей робота в кадре
+		
+		/*
+		 * Функция вычисляет скорость движения и угол поворота на основании данных
+		 * о линии, и записывает эти параметры в engine
+		 */
+		calcAngleAndSpeed(myline,engine, Signs);
+		
+		if(isPedestrian)
 		{
+			printf("pedestrian\n");
 			engine.speed = 0;
 			startHolding(500,0);
 		}
-		else
+		if(isAutoModel)
 		{
-			printf("Other model ignored coz of regulation.\n");
-		}
-	}
-	
-	if(hold)
-	{
-		holder.stop();
-		if(holder.get()>=holdFor)
-		{
-			hold = false;
-			in_handle = sign_none;
-		}
-		else
-		{
-			engine.speed = holdSpeed;
-		}
-	}
-	
-	if(!hold)
-	{
-		if(in_handle==sign_none)
-		{
-			signs current = getMaxPrioritySign(Signs);
-			if(current!=sign_none)
+			printf("Other model detected!\n");
+			if(!isCrossRegulated(Signs))
 			{
-				if(current == sign_trafficlight_red || current == sign_trafficlight_yellow || current == sign_trafficlight_yelRed)
-				{
-					if(stoplineInHandle || myline.stop_line)
-					{
-						in_handle = sign_trafficlight_red;
-					}
-				}
-				else
-				{
-					in_handle = current;
-				}
+				engine.speed = 0;
+				startHolding(500,0);
+			}
+			else
+			{
+				printf("Other model ignored coz of regulation.\n");
 			}
 		}
-		switch(in_handle)
+		
+		if(hold)
 		{
-			case sign_none:
+			holder.stop();
+			if(holder.get()>=holdFor)
 			{
-				break;
-			};
-			case sign_stop:
-			{
-				if(in_signs(sign_stop,Signs))
-				{
-					engine.speed = engine.speed - (engine.speed - MIN_SPEED)*signWeight;				
-					double tmpw = signWeight+0.03;
-					if(tmpw<1.0)
-					{
-						signWeight = tmpw;
-					}
-				}
-				else
-				{
-					signWeight = signWeightDefault;
-					engine.speed = speed_stop;
-					startHolding(4000,speed_stop); //сохранять указанную скорость движения 4000 миллисекунд
-				}
-				break;
-			};
-			case sign_crosswalk:
-			{
-				if(in_signs(sign_crosswalk,Signs))
-				{
-					engine.speed = engine.speed - (engine.speed - speed_crosswalk)*signWeight;				
-					double tmpw = signWeight+0.03;
-					if(tmpw<1.0)
-					{
-						signWeight = tmpw;
-					}
-				}
-				else
-				{
-					signWeight = signWeightDefault;
-					engine.speed = speed_crosswalk;
-					startHolding(2000,speed_crosswalk); //сохранять указанную скорость движения 2000 миллисекунд
-				}
-				break;
-			};
-			case sign_trafficlight_red:
-			{
-				int n = get_signNum(sign_trafficlight_green,Signs);
-				if(n==-1) // Ждать пока не загорится зеленый свет
-				{
-					engine.speed = 0;
-					timer_line.start();
-				}
-				else
-				{
-					stoplineInHandle = false;
-					in_handle = sign_none;
-				}
-				break;
-			};
-			case sign_giveway:
-			{
+				hold = false;
 				in_handle = sign_none;
-				break;
-			};
-			case sign_mainroad:
+			}
+			else
 			{
-				in_handle = sign_none;
-				break;
-			};
-			default:
-			{
-				break;
-			};
+				engine.speed = holdSpeed;
+			}
 		}
+		
+		if(!hold)
+		{
+			if(in_handle==sign_none)
+			{
+				signs current = getMaxPrioritySign(Signs);
+				if(current!=sign_none)
+				{
+					if(current == sign_trafficlight_red || current == sign_trafficlight_yellow || current == sign_trafficlight_yelRed)
+					{
+						if(stoplineInHandle || myline.stop_line)
+						{
+							in_handle = sign_trafficlight_red;
+						}
+					}
+					else
+					{
+						in_handle = current;
+					}
+				}
+			}
+			switch(in_handle)
+			{
+				case sign_none:
+				{
+					break;
+				};
+				case sign_stop:
+				{
+					if(in_signs(sign_stop,Signs))
+					{
+						engine.speed = engine.speed - (engine.speed - MIN_SPEED)*signWeight;				
+						double tmpw = signWeight+0.03;
+						if(tmpw<1.0)
+						{
+							signWeight = tmpw;
+						}
+					}
+					else
+					{
+						signWeight = signWeightDefault;
+						engine.speed = speed_stop;
+						startHolding(4000,speed_stop); //сохранять указанную скорость движения 4000 миллисекунд
+					}
+					break;
+				};
+				case sign_crosswalk:
+				{
+					if(in_signs(sign_crosswalk,Signs))
+					{
+						engine.speed = engine.speed - (engine.speed - speed_crosswalk)*signWeight;				
+						double tmpw = signWeight+0.03;
+						if(tmpw<1.0)
+						{
+							signWeight = tmpw;
+						}
+					}
+					else
+					{
+						signWeight = signWeightDefault;
+						engine.speed = speed_crosswalk;
+						startHolding(2000,speed_crosswalk); //сохранять указанную скорость движения 2000 миллисекунд
+					}
+					break;
+				};
+				case sign_trafficlight_red:
+				{
+					int n = get_signNum(sign_trafficlight_green,Signs);
+					if(n==-1) // Ждать пока не загорится зеленый свет
+					{
+						engine.speed = 0;
+						timer_line.start();
+					}
+					else
+					{
+						stoplineInHandle = false;
+						in_handle = sign_none;
+					}
+					break;
+				};
+				case sign_giveway:
+				{
+					in_handle = sign_none;
+					break;
+				};
+				case sign_mainroad:
+				{
+					in_handle = sign_none;
+					break;
+				};
+				default:
+				{
+					break;
+				};
+			}
+		}
+		
+		syst.engine_set(engine); //задать новые параметры движения робота
 	}
-	
-	syst.engine_set(engine); //задать новые параметры движения робота
-	
 	return;
 }
 
