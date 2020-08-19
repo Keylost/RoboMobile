@@ -1,4 +1,5 @@
 #include "capture.hpp"
+#include "OpenCVCompatibylityDefs.hpp"
 
 /*
  * Функция capture_fnc() реализует поток захвата изображения с видеокамеры робота.

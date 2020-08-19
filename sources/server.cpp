@@ -1,4 +1,5 @@
 #include "server.hpp"
+#include "OpenCVCompatibylityDefs.hpp"
 
 /*
  * Функция send_data() отвечает за отправку данных из @src размера @size байт с использованием сокета @socket

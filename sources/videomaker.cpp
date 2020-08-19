@@ -1,4 +1,5 @@
 #include "videomaker.hpp"
+#include "OpenCVCompatibylityDefs.hpp"
 
 /*
  * Функция init() отвечает за инициализацию объекта класса VideoMaker

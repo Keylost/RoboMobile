@@ -1,4 +1,5 @@
 #include "recognition.hpp"
+#include "OpenCVCompatibylityDefs.hpp"
 
 //#define __PROFILING__
 //#define __DEBUG__

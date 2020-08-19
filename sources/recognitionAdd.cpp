@@ -1,4 +1,5 @@
 #include "recognitionAdd.hpp"
+#include "OpenCVCompatibylityDefs.hpp"
 
 using namespace std;
 using namespace cv;
